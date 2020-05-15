@@ -1,0 +1,6 @@
+data:
+  pngdir: ../data/pngs
+  n_folds: 4
+  img_dim:
+
+  self.mixed_precision = cfg['training'].get('mixed_precision', False)
