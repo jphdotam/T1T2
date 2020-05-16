@@ -127,5 +127,4 @@ dmypy.json
 # james
 data/
 .idea/
-output/models
-output/logs
+output/
