@@ -8,6 +8,6 @@ def shape_to_mask(img_shape, i_label, points):
     mask = PIL.Image.fromarray(mask)
     draw = PIL.ImageDraw.Draw(mask)
     xy = [tuple(point) for point in points]
-    draw.polygon(xy=xy, outline=1, fill=i_label)
+    draw.polygon(xy=xy, outline=0, fill=i_label)
     mask = np.array(mask, dtype=bool)
     return mask

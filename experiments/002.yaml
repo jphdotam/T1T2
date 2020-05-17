@@ -19,7 +19,7 @@ training:
   mixed_precision: false
   # data loading
   batch_size: 16
-  n_folds: 4
+  n_folds: 7
   num_workers: 1
   # loss functions
   criterion: hrnetcrossentropy
@@ -40,7 +40,7 @@ output:
   vis_n: 10
 
 transforms:
-  method: longestresize_then_pad
+  method: pad
   train:
     hflip: true
     vflip: true

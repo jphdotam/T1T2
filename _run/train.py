@@ -12,7 +12,7 @@ from utils.tensorboard import get_summary_writer
 from utils.vis import vis_seg
 
 
-CONFIG = "../experiments/001.yaml"
+CONFIG = "../experiments/002.yaml"
 
 if __name__ ==  "__main__":
     fold = 1
@@ -25,7 +25,7 @@ if __name__ ==  "__main__":
     dataset_train = T1T2Dataset(cfg, 'train', train_transforms, fold)
     dataset_test = T1T2Dataset(cfg, 'test', test_transforms, fold)
     dataloader_train = DataLoader(dataset_train, cfg['training']['batch_size'], shuffle=True,
-                                  num_workers=cfg['training']['num_workers'], pin_memory=True)
+                                 num_workers=cfg['training']['num_workers'], pin_memory=True)
     dataloader_test = DataLoader(dataset_test, cfg['training']['batch_size'], shuffle=False,
                                  num_workers=cfg['training']['num_workers'], pin_memory=True)
 

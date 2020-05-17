@@ -8,8 +8,16 @@ def get_segmentation_transforms(cfg, normalise=True):
     mean, std = cfg['data']['mean'], cfg['data']['std']
     cfgtr = cfg['transforms']['train']
 
-    train_transforms = [A.LongestMaxSize(img_size), A.PadIfNeeded(min_height=img_height, min_width=img_width)]
-    test_transforms = [A.LongestMaxSize(img_size), A.PadIfNeeded(min_height=img_height, min_width=img_width)]
+    transform_method = cfg['transforms']['method']
+
+    if transform_method == 'longestresize_then_pad':
+        train_transforms = [A.LongestMaxSize(img_size), A.PadIfNeeded(min_height=img_height, min_width=img_width)]
+        test_transforms = [A.LongestMaxSize(img_size), A.PadIfNeeded(min_height=img_height, min_width=img_width)]
+    elif transform_method == 'pad':
+        train_transforms = [A.PadIfNeeded(min_height=img_size, min_width=img_size)]
+        test_transforms = [A.PadIfNeeded(min_height=img_size, min_width=img_size)]
+    else:
+        raise ValueError()
 
     if 'randomresizedcrop' in cfgtr:
         train_transforms.append(A.RandomResizedCrop(img_height, img_width, scale=(0.3, 1.0)))

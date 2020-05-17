@@ -43,7 +43,7 @@ class T1T2Dataset(Dataset):
         """Get a list of tuples of imagepngs:maskpngs"""
         sequences = []
         for patient in self.patients:
-            imagepaths = glob(os.path.join(self.pngdir, f"i_{patient}*"))  # Get all images
+            imagepaths = glob(os.path.join(self.pngdir, f"i_{patient} -*"))  # Get all images
             for imgpath in imagepaths:  # Check matching mask
                 maskpath = imgpath.replace('i_', 'm_')
                 if os.path.exists(maskpath):
