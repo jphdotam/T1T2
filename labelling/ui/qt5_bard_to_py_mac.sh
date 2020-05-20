@@ -1,0 +1,1 @@
+/Users/james/miniconda3/bin/pyuic5 ./ui_label.ui -o layout_label.py

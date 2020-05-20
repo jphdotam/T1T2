@@ -66,3 +66,17 @@ def dicompath_to_img(dicompath):
     frame = np.clip(frame, 0, 1)
     frame = (frame * 255).astype(np.uint8)
     return frame
+
+
+def get_sequences(path):
+    sequences = {}
+    dates = [f for f in glob(os.path.join(path, "*")) if os.path.isdir(f)]
+    sequencepaths = sorted([seq for d in dates for seq in glob(os.path.join(d, "*")) if os.path.isdir(seq)])
+    for seqpath in sequencepaths:
+        seqid = f"{os.path.basename(os.path.dirname(seqpath))} - {os.path.basename(seqpath)}"
+        reported = True if os.path.exists(os.path.join(seqpath, "label.pickle")) else False
+        sequences[seqid] = {
+            'path': seqpath,
+            'reported': reported
+        }
+    return sequences
