@@ -1,6 +1,24 @@
 # T1T2
- 
-To run, run ./_run/train.py
+
+1. Label your data
+
+2. Export the training data using those labels
+
+3. Train the network
+
+---
+
+For the labelling system (shown below) run `./_run/label.py`
+
+![Labelling system](https://raw.githubusercontent.com/jphdotam/T1T2/master/labelling/ui/labelui2.gif)
+
+---
+
+Exporting the data is simply done by running `./_run/export_png_masks.py`
+
+---
+
+To train an HRNet, run `./_run/train.py`, after making sure you've exported your labels wiut
 
 Early results from:
 
