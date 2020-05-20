@@ -5,8 +5,8 @@ import numpy as np
 from utils.dicoms import get_sequences_by_report_for_folder, load_pickle, dicompath_to_img
 from utils.mask import shape_to_mask
 
-DICOM_DIR = "../../data/dicoms"
-OUTPUT_DIR = "../../data/pngs"
+DICOM_DIR = "../data/dicoms"
+OUTPUT_DIR = "../data/pngs"
 LABELS = ('epi', 'endo')
 
 sequences_by_report = get_sequences_by_report_for_folder(DICOM_DIR)
