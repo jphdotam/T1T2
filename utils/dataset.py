@@ -21,12 +21,12 @@ class T1T2Dataset(Dataset):
         self.n_folds = cfg['training']['n_folds']
         self.mixed_precision = cfg['training'].get('mixed_precision', False)
 
-        self.patients = self.load_patients()
+        self.dates = self.load_dates()
         self.sequences = self.load_sequences()
         self.check_image_sizes()
 
-    def load_patients(self):
-        """Get each unique patient in the PNG directory and split into train/test using seeding for reproducibility"""
+    def load_dates(self):
+        """Get each unique date in the PNG directory and split into train/test using seeding for reproducibility"""
 
         def get_train_test_for_patient(patient):
             random.seed(patient)
@@ -35,20 +35,20 @@ class T1T2Dataset(Dataset):
 
         assert self.train_or_test in ('train', 'test')
         images = glob(os.path.join(self.pngdir, f"i_*.png"))
-        patients = list({i.split('_')[1].split(' ')[0] for i in images})
-        patients = [p for p in patients if get_train_test_for_patient(p) == self.train_or_test]
-        return patients
+        dates = list({i.split('_')[1].split(' ')[0] for i in images})
+        dates = [p for p in dates if get_train_test_for_patient(p) == self.train_or_test]
+        return dates
 
     def load_sequences(self):
         """Get a list of tuples of imagepngs:maskpngs"""
         sequences = []
-        for patient in self.patients:
-            imagepaths = glob(os.path.join(self.pngdir, f"i_{patient} -*"))  # Get all images
+        for date in self.dates:
+            imagepaths = glob(os.path.join(self.pngdir, f"i_{date}_*"))  # Get all images
             for imgpath in imagepaths:  # Check matching mask
                 maskpath = imgpath.replace('i_', 'm_')
                 if os.path.exists(maskpath):
                     sequences.append((imgpath, maskpath))
-        print(f"{self.train_or_test.upper():<5} FOLD {self.fold}: Loaded {len(sequences)} over {len(self.patients)} patients")
+        print(f"{self.train_or_test.upper():<5} FOLD {self.fold}: Loaded {len(sequences)} over {len(self.dates)} dates")
         return sequences
 
     def __len__(self):

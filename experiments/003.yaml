@@ -19,7 +19,7 @@ training:
   mixed_precision: false
   # data loading
   batch_size: 16
-  n_folds: 7
+  n_folds: 5
   num_workers: 1
   # loss functions
   criterion: hrnetcrossentropy
