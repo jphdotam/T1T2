@@ -103,13 +103,11 @@ for channel, colour in zip((1, 2), ('r', 'y')):  # LV cav exterior & wall exteri
     style = f"{colour}-"
     for poly in polys:
         ext_x, ext_y = poly.exterior.coords.xy
-        print(f"Coord 0 is {ext_x[0]},{ext_y[0]}")
         axes[1][0].plot(ext_x, ext_y, style, alpha=0.5)
         axes[1][1].plot(ext_x, ext_y, style, alpha=0.5)
 
         scaled_x = col_from - w_pad + (np.array(ext_x) / low_high_scale)
         scaled_y = row_from - h_pad + (np.array(ext_y) / low_high_scale)
-        print(f"Scaled coord 0 is {scaled_x[0]},{scaled_y[0]}")
         axes[0][0].plot(scaled_x, scaled_y, style, alpha=0.5)
         axes[0][1].plot(scaled_x, scaled_y, style, alpha=0.5)
 
