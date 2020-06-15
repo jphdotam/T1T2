@@ -21,7 +21,7 @@ def dicompath_to_img(dicompath):
 # Settings
 MEAN = [0.3023, 0.4016]
 STD = [0.2582, 0.3189]
-HI_RES_DIM = 224
+HI_RES_DIM = 256
 BORDER = 20  # Bordersize around low res detected LV
 
 # Load the ONNX low-res model

@@ -22,8 +22,8 @@ model.eval()
 model.load_state_dict(torch.load(MODEL_PATH)['state_dict'])
 
 # Data
-train_transforms, _ = get_segmentation_transforms(cfg)
-ds_train = T1T2Dataset(cfg, 'train', train_transforms, fold=1)
+_, test_transforms = get_segmentation_transforms(cfg)
+ds_train = T1T2Dataset(cfg, 'train', test_transforms, fold=1)
 dl_train = DataLoader(ds_train, cfg['training']['batch_size'], shuffle=True, num_workers=0, pin_memory=True)
 x, y = next(iter(dl_train))
 
