@@ -13,7 +13,7 @@ from labelling.ui.css import css
 from labelling.ui.layout_label import Ui_MainWindow
 from utils.dicoms import save_pickle, load_pickle, dicompath_to_img, get_sequences
 
-DICOMDIR = "../data/dicoms/by_date_by_study/"
+DICOMDIR = "../data/dicoms/bdbs_new/"
 
 if QtCore.QT_VERSION >= 0x50501:
     def excepthook(type_, value, traceback_):

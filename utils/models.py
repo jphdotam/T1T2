@@ -2,11 +2,25 @@ from collections import defaultdict
 
 import torch
 import torch.nn as nn
+from torchvision.models.segmentation import fcn_resnet101
 
 import hrnet.lib.models as hrnetmodels
+from utils.higher_hrnet import get_2dnet_cfg, get_seg_model
 
 def load_seg_model(cfg, load_model_only=False):
-    model = hrnetmodels.seg_hrnet.get_seg_model(cfg)
+    modeltype = cfg['training']['model']
+    if modeltype == 'seg_hrnet':
+        model = hrnetmodels.seg_hrnet.get_seg_model(cfg)
+    elif modeltype == 'higher_hrnet':
+        model = get_seg_model(get_2dnet_cfg())
+    elif modeltype == 'fcn_resnet101':
+        n_channels = cfg['data']['n_input_channels']
+        n_outputs = cfg['data']['n_classes']
+        model = fcn_resnet101(pretrained=False, num_classes=n_outputs)
+        model.backbone.conv1 = nn.Conv2d(n_channels, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+    else:
+        raise ValueError()
+
 
     if modelpath := cfg['resume'].get('path', None):
         state = torch.load(modelpath)

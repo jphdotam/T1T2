@@ -1,6 +1,8 @@
 import os
 import random
 import skimage.io
+import skimage.measure
+import numpy as np
 from glob import glob
 from tqdm import tqdm
 
@@ -17,6 +19,7 @@ class T1T2Dataset(Dataset):
 
         self.pngdir = cfg['data']['pngdir']
         self.width, self.height = cfg['data']['image_dim']
+        self.high_res = cfg['data'].get('high_res', False)
 
         self.n_folds = cfg['training']['n_folds']
         self.mixed_precision = cfg['training'].get('mixed_precision', False)
@@ -47,18 +50,44 @@ class T1T2Dataset(Dataset):
             for imgpath in imagepaths:  # Check matching mask
                 maskpath = imgpath.replace('i_', 'm_')
                 if os.path.exists(maskpath):
-                    sequences.append((imgpath, maskpath))
+                    if self.high_res:
+                        border = self.cfg['data']['border']
+                        high_res_coords = self.get_high_res_coords_for_mask(maskpath, border)
+                        sequences.append((imgpath, maskpath, high_res_coords))
+                    else:
+                        sequences.append((imgpath, maskpath, None))
         print(f"{self.train_or_test.upper():<5} FOLD {self.fold}: Loaded {len(sequences)} over {len(self.dates)} dates")
         return sequences
+
+    @staticmethod
+    def get_high_res_coords_for_mask(mask, border):
+        """Can receive an array or a file path"""
+        if type(mask) == str:
+            mask = skimage.io.imread(mask)
+        mask = (mask == 1) | (mask == 2)
+        labels = skimage.measure.label(mask)  # Array of trues/falses -> numbered regions
+        region_labels, counts = np.unique(labels, return_counts=True)
+        largest_label_i = np.argmax(counts[1:]) + 1
+        largest_label = region_labels[largest_label_i]
+        rows = np.where(np.any(labels == largest_label, axis=1) == True)
+        cols = np.where(np.any(labels == largest_label, axis=0) == True)
+        row_from, row_to = np.min(rows)-border, np.max(rows)+border
+        col_from, col_to = np.min(cols)-border, np.max(cols)+border
+        return row_from, row_to, col_from, col_to
 
     def __len__(self):
         return len(self.sequences)
 
     def __getitem__(self, idx):
-        imgpath, maskpath = self.sequences[idx]
+        imgpath, maskpath, coords = self.sequences[idx]  # coords will be None if not using high_res mode
 
         img = skimage.io.imread(imgpath)
         mask = skimage.io.imread(maskpath)
+
+        if self.high_res:
+            row_from, row_to, col_from, col_to = coords
+            img = img[row_from:row_to, col_from:col_to]
+            mask = mask[row_from:row_to, col_from:col_to]
 
         trans = self.transforms(image=img, mask=mask)
         img, mask = trans['image'], trans['mask']
@@ -76,13 +105,14 @@ class T1T2Dataset(Dataset):
     def get_max_img_dim(self):
         max_height, max_width = 0,0
         for seqs in self.sequences:
-            imgpath, maskpath = seqs
+            imgpath, maskpath, _coords = seqs
             h,w,c = skimage.io.imread(imgpath).shape
             max_height = max(max_height, h)
             max_width = max(max_width, w)
         return max_height, max_width
 
     def check_image_sizes(self):
+        """Needed if not using high-res, as image will be reflection padded up to this size"""
         max_height, max_width = self.get_max_img_dim()
         assert max_height <= self.height
         assert max_width <= self.width

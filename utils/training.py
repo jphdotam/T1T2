@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from collections import deque
+from collections import deque, OrderedDict
 
 import torch
 import torch.nn as nn
@@ -106,18 +106,26 @@ def cycle_seg(train_or_test, model, dataloader, epoch, criterion, optimizer, cfg
             if mixed_precision:
                 with autocast():
                     y_pred = model(x)
+                    if type(y_pred) == OrderedDict:
+                        y_pred = y_pred['out']
                     loss = criterion(y_pred, y_true)
             else:
                 y_pred = model(x)
+                if type(y_pred) == OrderedDict:
+                    y_pred = y_pred['out']
                 loss = criterion(y_pred, y_true)
         else:
             with torch.no_grad():
                 if mixed_precision:
                     with autocast():
                         y_pred = model(x)
+                        if type(y_pred) == OrderedDict:
+                            y_pred = y_pred['out']
                         loss = criterion(y_pred, y_true)
                 else:
                     y_pred = model(x)
+                    if type(y_pred) == OrderedDict:
+                        y_pred = y_pred['out']
                     loss = criterion(y_pred, y_true)
 
         # Backward pass
@@ -137,10 +145,10 @@ def cycle_seg(train_or_test, model, dataloader, epoch, criterion, optimizer, cfg
             ph, pw = y_pred.size(2), y_pred.size(3)
             h, w = y_true.size(1), y_true.size(2)
             if ph != h or pw != w:
-                up_pred = F.upsample(
+                y_pred = F.upsample(
                     input=y_pred, size=(h, w), mode='bilinear')
 
-            cls_pred = torch.argmax(up_pred, dim=1).flatten()
+            cls_pred = torch.argmax(y_pred, dim=1).flatten()
             cls_true = y_true.flatten()
 
             accu = (1 - torch.mean((cls_pred == cls_true).float())).cpu().numpy()
@@ -174,9 +182,9 @@ def cycle_seg(train_or_test, model, dataloader, epoch, criterion, optimizer, cfg
     return loss
 
 
-def save_model(state, save_path, test_metric, best_metric, cfg, last_save_path, lowest_best=True):
+def save_model(state, save_path, test_metric, best_metric, cfg, last_save_path, lowest_best=True, final=False):
     save = cfg['output']['save']
-    if save == 'all':
+    if save == 'all' or final:
         torch.save(state, save_path)
     elif (test_metric < best_metric) == lowest_best:
         print(f"{test_metric:.5f} better than {best_metric:.5f} -> SAVING")

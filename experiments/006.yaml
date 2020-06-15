@@ -1,0 +1,56 @@
+resume:
+  path: false
+  epoch: false
+  reset_optimizer: false
+
+data:
+  pngdir: ../data/pngs
+  n_input_channels: 2
+  n_classes: 3
+  image_dim: [256,256]
+  mean: [1, 0.3023, 0.4016]  # First channel isn't used
+  std: [1, 0.2582, 0.3189]  # First channel isn't used
+
+training:
+  model: higher_hrnet
+  n_epochs: 160
+  # gpu
+  device: cuda
+  dataparallel: true
+  mixed_precision: false
+  # data loading
+  batch_size: 16
+  n_folds: 5
+  num_workers: 1
+  # loss functions
+  criterion: hrnetcrossentropy
+  test_criterion: hrnetcrossentropy
+  # optimizer
+  optimizer: rangerlars
+  lr: 0.001
+  weight_decay: 0
+  # scheduling
+  sched: flatcosine
+
+output:
+  model_dir: ../output/models
+  vis_dir: ../output/vis
+  log_dir: ../output/logs
+  use_tensorboard: true
+  log_freq: 1  # In iterations
+  save: 'best'  # 'best', 'improvements', 'all'
+  vis_every: 20
+  vis_n: 10
+
+transforms:
+  method: pad
+  train:
+    hflip: true
+    vflip: true
+    randomresizedcrop: false
+    randomcrop: [128, 128]
+    rotate: true
+    maskdropout: false
+    griddropout: true
+    brightnesscontrast: true
+  test: false
