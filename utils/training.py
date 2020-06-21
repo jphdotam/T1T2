@@ -11,10 +11,21 @@ from hrnet.lib.core.criterion import CrossEntropy, OhemCrossEntropy
 
 
 def load_criterion(cfg):
-    crit = cfg['training']['criterion']
+
+    def get_criterion(name, class_weights):
+        if name == 'hrnetcrossentropy':
+            print(f"HRNet CrossEntropy with class_weights: {class_weights}")
+            return CrossEntropy(weight=class_weights)
+        elif name == 'crossentropy':
+            print(f"CrossEntropy with class_weights: {class_weights}")
+            return nn.CrossEntropyLoss(weight=class_weights)
+        elif name == 'mse':
+            return nn.MSELoss()
+        else:
+            raise ValueError()
+
     class_weights_train = cfg['training'].get('class_weights_train', None)
     class_weights_test = cfg['training'].get('class_weights_test', None)
-    ignore_index = cfg['training'].get('ignore_index', -1)
 
     if class_weights_train:
         print(f"Using class weights {class_weights_train} for training")
@@ -28,28 +39,8 @@ def load_criterion(cfg):
     else:
         class_weights_test = None
 
-    if ignore_index != -1:
-        print(f"Ignoring index {ignore_index}")
-
-    def get_criterion(name):
-        if name == 'hrnetcrossentropy':
-            return CrossEntropy(weight=class_weights_train, ignore_label=ignore_index)
-        elif name == 'hrnetomhem':
-            return OhemCrossEntropy(weight=class_weights_train, ignore_label=ignore_index)
-        elif name == 'crossentropy':
-            return nn.CrossEntropyLoss(weight=class_weights_train, ignore_index=ignore_index)
-        elif name == 'mse':
-            return nn.MSELoss()
-        else:
-            raise ValueError()
-
-    train_criterion = get_criterion(crit)
-
-    test_crit = cfg['training'].get('test_criterion', False)
-    if test_crit:
-        test_criterion = get_criterion(test_crit)
-    else:
-        test_criterion = train_criterion
+    train_criterion = get_criterion(cfg['training']['train_criterion'], class_weights_train)
+    test_criterion = get_criterion(cfg['training']['test_criterion'], class_weights_test)
 
     return train_criterion, test_criterion
 
@@ -82,6 +73,7 @@ def cycle_seg(train_or_test, model, dataloader, epoch, criterion, optimizer, cfg
     log_freq = cfg['output']['log_freq']
     device = cfg['training']['device']
     mixed_precision = cfg['training'].get('mixed_precision', False)
+    aux_loss_weight = cfg['training'].get('aux_loss', False)
     meter_loss = Am()
     accus, accus_nobg = [], []
 
@@ -93,6 +85,16 @@ def cycle_seg(train_or_test, model, dataloader, epoch, criterion, optimizer, cfg
         training = False
     else:
         raise ValueError(f"train_or_test must be 'train', or 'test', not {train_or_test}")
+
+    def get_loss(y_p, y_t, crit, aux_loss_wt):
+        if aux_loss_weight:
+            loss_aux = crit(y_p['aux'], y_t)
+            loss_out = crit(y_p['out'], y_t)
+            return (loss_aux * aux_loss_wt) + loss_out
+        else:
+            if type(y_p) == OrderedDict:
+                y_p = y_p['out']
+            return crit(y_p, y_t)
 
     for i_batch, (x, y_true) in enumerate(dataloader):
         # Forward pass
@@ -106,27 +108,19 @@ def cycle_seg(train_or_test, model, dataloader, epoch, criterion, optimizer, cfg
             if mixed_precision:
                 with autocast():
                     y_pred = model(x)
-                    if type(y_pred) == OrderedDict:
-                        y_pred = y_pred['out']
-                    loss = criterion(y_pred, y_true)
+                    loss = get_loss(y_pred, y_true, criterion, aux_loss_weight)
             else:
                 y_pred = model(x)
-                if type(y_pred) == OrderedDict:
-                    y_pred = y_pred['out']
-                loss = criterion(y_pred, y_true)
+                loss = get_loss(y_pred, y_true, criterion, aux_loss_weight)
         else:
             with torch.no_grad():
                 if mixed_precision:
                     with autocast():
                         y_pred = model(x)
-                        if type(y_pred) == OrderedDict:
-                            y_pred = y_pred['out']
-                        loss = criterion(y_pred, y_true)
+                        loss = get_loss(y_pred, y_true, criterion, aux_loss_wt=False)
                 else:
                     y_pred = model(x)
-                    if type(y_pred) == OrderedDict:
-                        y_pred = y_pred['out']
-                    loss = criterion(y_pred, y_true)
+                    loss = get_loss(y_pred, y_true, criterion, aux_loss_wt=False)
 
         # Backward pass
         if training:
@@ -142,6 +136,8 @@ def cycle_seg(train_or_test, model, dataloader, epoch, criterion, optimizer, cfg
 
         # Metrics
         with torch.no_grad():
+            if type(y_pred) == OrderedDict:
+                y_pred = y_pred['out']
             ph, pw = y_pred.size(2), y_pred.size(3)
             h, w = y_true.size(1), y_true.size(2)
             if ph != h or pw != w:

@@ -17,16 +17,13 @@ class T1T2Dataset(Dataset):
         self.transforms = transforms
         self.fold = fold
 
-        self.pngdir = cfg['data']['pngdir']
-        self.width, self.height = cfg['data']['image_dim']
-        self.high_res = cfg['data'].get('high_res', False)
+        self.pngdir = os.path.join(cfg['data']['pngdir'], cfg['res'])
 
         self.n_folds = cfg['training']['n_folds']
         self.mixed_precision = cfg['training'].get('mixed_precision', False)
 
         self.dates = self.load_dates()
         self.sequences = self.load_sequences()
-        self.check_image_sizes()
 
     def load_dates(self):
         """Get each unique date in the PNG directory and split into train/test using seeding for reproducibility"""
@@ -37,7 +34,7 @@ class T1T2Dataset(Dataset):
             return 'test' if random.randint(1, self.n_folds) == self.fold else 'train'
 
         assert self.train_or_test in ('train', 'test')
-        images = glob(os.path.join(self.pngdir, f"i_*.png"))
+        images = sorted(glob(os.path.join(self.pngdir, f"i_*.png")))
         dates = list({i.split('_')[1].split(' ')[0] for i in images})
         dates = [p for p in dates if get_train_test_for_patient(p) == self.train_or_test]
         return dates
@@ -46,21 +43,16 @@ class T1T2Dataset(Dataset):
         """Get a list of tuples of imagepngs:maskpngs"""
         sequences = []
         for date in self.dates:
-            imagepaths = glob(os.path.join(self.pngdir, f"i_{date}_*"))  # Get all images
+            imagepaths = sorted(glob(os.path.join(self.pngdir, f"i_{date}_*")))  # Get all images
             for imgpath in imagepaths:  # Check matching mask
                 maskpath = imgpath.replace('i_', 'm_')
                 if os.path.exists(maskpath):
-                    if self.high_res:
-                        border = self.cfg['data']['border']
-                        high_res_coords = self.get_high_res_coords_for_mask(maskpath, border)
-                        sequences.append((imgpath, maskpath, high_res_coords))
-                    else:
-                        sequences.append((imgpath, maskpath, None))
+                    sequences.append((imgpath, maskpath, None))
         print(f"{self.train_or_test.upper():<5} FOLD {self.fold}: Loaded {len(sequences)} over {len(self.dates)} dates")
         return sequences
 
     @staticmethod
-    def get_high_res_coords_for_mask(mask, border):
+    def get_high_res_coords_for_mask(mask, border=0, get='range'):
         """Can receive an array or a file path"""
         if type(mask) == str:
             mask = skimage.io.imread(mask)
@@ -71,9 +63,16 @@ class T1T2Dataset(Dataset):
         largest_label = region_labels[largest_label_i]
         rows = np.where(np.any(labels == largest_label, axis=1) == True)
         cols = np.where(np.any(labels == largest_label, axis=0) == True)
-        row_from, row_to = np.min(rows)-border, np.max(rows)+border
-        col_from, col_to = np.min(cols)-border, np.max(cols)+border
-        return row_from, row_to, col_from, col_to
+        if get == 'range':
+            row_from, row_to = np.min(rows)-border, np.max(rows)+border
+            col_from, col_to = np.min(cols)-border, np.max(cols)+border
+            return row_from, row_to, col_from, col_to
+        elif get == 'centre':
+            assert border == 0
+            return int(np.median(rows)), int(np.median(cols))
+        else:
+            raise ValueError()
+
 
     def __len__(self):
         return len(self.sequences)
@@ -83,11 +82,6 @@ class T1T2Dataset(Dataset):
 
         img = skimage.io.imread(imgpath)
         mask = skimage.io.imread(maskpath)
-
-        if self.high_res:
-            row_from, row_to, col_from, col_to = coords
-            img = img[row_from:row_to, col_from:col_to]
-            mask = mask[row_from:row_to, col_from:col_to]
 
         trans = self.transforms(image=img, mask=mask)
         img, mask = trans['image'], trans['mask']
@@ -110,12 +104,6 @@ class T1T2Dataset(Dataset):
             max_height = max(max_height, h)
             max_width = max(max_width, w)
         return max_height, max_width
-
-    def check_image_sizes(self):
-        """Needed if not using high-res, as image will be reflection padded up to this size"""
-        max_height, max_width = self.get_max_img_dim()
-        assert max_height <= self.height
-        assert max_width <= self.width
 
     def get_normalisation_params_for_images(self, max=2000):
         mean, std = 0, 0

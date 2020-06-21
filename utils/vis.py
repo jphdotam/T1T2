@@ -34,7 +34,7 @@ def vis_seg(dataloader, model, epoch, output_dir, cfg, show=False, writer=None, 
         return
 
     generate_polygons = cfg['output'].get('generate_polygons', False)
-    n_classes = cfg['data']['n_classes']
+    n_classes = len(cfg['data']['output_classes'])
     mean, std = cfg['data']['mean'], cfg['data']['std']
     n_rows = cfg['output']['vis_n']
     n_cols = 4

@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import QWidget, QShortcut
 
 from labelling.ui.css import css
 from labelling.ui.layout_label import Ui_MainWindow
-from utils.dicoms import save_pickle, load_pickle, dicompath_to_img, get_sequences
+from utils.dicoms import save_pickle, load_pickle, dicom_to_img, get_sequences
 
 DICOMDIR = "../data/dicoms/bdbs_new/"
 
@@ -86,7 +86,7 @@ class MainWindowUI(Ui_MainWindow):
         dicomname = self.comboBox_sequences.currentText()
         dicompath = os.path.join(self.studypath, dicomname)
         print(f"dicompath is {dicompath}")
-        self.img_array = dicompath_to_img(dicompath)
+        self.img_array = dicom_to_img(dicompath)
         self.draw_image_and_rois()
 
     def get_pickle_path(self, studypath=None):

@@ -2,7 +2,7 @@ from collections import defaultdict
 
 import torch
 import torch.nn as nn
-from torchvision.models.segmentation import fcn_resnet101
+from torchvision.models.segmentation import fcn_resnet101, deeplabv3_resnet101
 
 import hrnet.lib.models as hrnetmodels
 from utils.higher_hrnet import get_2dnet_cfg, get_seg_model
@@ -14,13 +14,18 @@ def load_seg_model(cfg, load_model_only=False):
     elif modeltype == 'higher_hrnet':
         model = get_seg_model(get_2dnet_cfg())
     elif modeltype == 'fcn_resnet101':
-        n_channels = cfg['data']['n_input_channels']
-        n_outputs = cfg['data']['n_classes']
+        n_channels = len(cfg['data']['input_classes'])
+        n_outputs = len(cfg['data']['output_classes'])
         model = fcn_resnet101(pretrained=False, num_classes=n_outputs)
+        model.backbone.conv1 = nn.Conv2d(n_channels, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+    elif modeltype == 'deeplabv3_resnet101':
+        n_channels = len(cfg['data']['input_classes'])
+        n_outputs = len(cfg['data']['output_classes'])
+        aux_loss = cfg['training']['aux_loss'] is not False
+        model = deeplabv3_resnet101(pretrained=False, num_classes=n_outputs, aux_loss=aux_loss)
         model.backbone.conv1 = nn.Conv2d(n_channels, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
     else:
         raise ValueError()
-
 
     if modelpath := cfg['resume'].get('path', None):
         state = torch.load(modelpath)
@@ -39,6 +44,7 @@ def load_seg_model(cfg, load_model_only=False):
         starting_epoch = 1
         state = {}
 
+    model = model.to(cfg['training']['device'])
     if cfg['training']['dataparallel']:
         model = nn.DataParallel(model).to(cfg['training']['device'])
 

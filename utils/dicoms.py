@@ -58,8 +58,11 @@ def save_pickle(path, data):
         pickle.dump(data, f)
 
 
-def dicompath_to_img(dicompath):
-    dcm = pydicom.dcmread(dicompath)
+def dicom_to_img(dicom):
+    if type(dicom) == str:
+        dcm = pydicom.dcmread(dicom)
+    else:
+        dcm = dicom
     window_min = max(0, dcm.WindowCenter - dcm.WindowWidth)
     frame = dcm.pixel_array - window_min
     frame = frame / dcm.WindowWidth

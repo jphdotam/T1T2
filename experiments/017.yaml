@@ -1,0 +1,86 @@
+res: high  # low or high
+
+resume:
+  path: false
+  epoch: false
+  reset_optimizer: false
+
+data:
+  pngdir: ../data/pngs
+  input_classes: [epi, endo]
+  output_classes: [background, lvcav, lvwall]
+  mean: [1, 0.3023, 0.4016]  # First channel isn't used
+  std: [1, 0.2582, 0.3189]  # First channel isn't used
+  # low res
+  low_res_crop: [256,256]  # Before transforms like cropping etc.
+  # high res
+  high_res: false
+  high_res_crop: [168, 168]
+  # export
+  dicomdir: "../data/dicoms/by_date_by_study"
+  upsample_by_mm: true  # if true, we use dicom pixel_spacing to convert to 1pixel per mm
+
+training:
+  model: 'deeplabv3_resnet50'
+  aux_loss: 0.4  # If not false, it's a ratio of aux:main loss
+  n_epochs: 250
+  # gpu
+  device: cuda
+  dataparallel: false
+  mixed_precision: false
+  # data loading
+  batch_size: 32
+  n_folds: 5
+  num_workers: 1
+  # loss functions
+  train_criterion: crossentropy
+  test_criterion: crossentropy
+  class_weights_train: false  # [20, 4, 1]
+  class_weights_test: false
+  # optimizer
+  optimizer: rangerlars
+  lr: 0.001
+  weight_decay: 0
+  # scheduling
+  sched: false
+
+output:
+  model_dir: ../output/models
+  vis_dir: ../output/vis
+  log_dir: ../output/logs
+  use_tensorboard: true
+  log_freq: 5  # In iterations
+  save: 'best'  # 'best', 'improvements', 'all'
+  vis_every: 1
+  vis_n: 10
+  generate_polygons: true  # if false, rasterio & shapely not required
+
+transforms:
+  low:
+    train:
+      hflip: true
+      vflip: true
+      randomresizedcrop: [224, 224]
+      rotate: false
+      shiftscalerotate: true
+      griddropout: true
+      brightnesscontrast: true
+      blur: true
+      noise: true
+      hsv: true
+    test:
+      resize: [256, 256]
+  high:
+    train:
+      hflip: true
+      vflip: true
+      randomresizedcrop: [224, 224]
+      rotate: false
+      shiftscalerotate: true
+      griddropout: false
+      brightnesscontrast: true
+      blur: true
+      noise: true
+      hsv: true
+    test:
+      resize: [256, 256]

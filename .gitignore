@@ -129,3 +129,4 @@ data/
 .idea/
 output/logs
 output/models
+output/vis

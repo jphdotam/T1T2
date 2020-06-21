@@ -12,7 +12,7 @@ from utils.tensorboard import get_summary_writer
 from utils.vis import vis_seg
 
 
-CONFIG = "../experiments/010.yaml"
+CONFIG = "../experiments/020.yaml"
 
 if __name__ ==  "__main__":
     fold = 1
@@ -27,7 +27,7 @@ if __name__ ==  "__main__":
     dl_train = DataLoader(ds_train, cfg['training']['batch_size'], shuffle=True,
                           num_workers=cfg['training']['num_workers'], pin_memory=True)
     dl_test = DataLoader(ds_test, cfg['training']['batch_size'], shuffle=False,
-                         num_workers=cfg['training']['num_workers'], pin_memory=True)
+                         num_workers=1, pin_memory=True)
 
     # Model
     model, starting_epoch, state = load_seg_model(cfg)
@@ -46,7 +46,7 @@ if __name__ ==  "__main__":
 
         # save model if required('all', 'best', or 'improvement')
         state = {'epoch': epoch + 1,
-                 'state_dict': model.module.state_dict(),
+                 'state_dict': model.module.state_dict() if cfg['training']['dataparallel'] else model.state_dict(),
                  'optimizer': optimizer.state_dict(),
                  'scheduler': scheduler}
         save_path = os.path.join(model_dir, f"{fold}_{epoch}_{test_loss:.07f}.pt")
