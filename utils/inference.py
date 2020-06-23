@@ -169,11 +169,11 @@ def pose_mask_to_coords(prediction_mask,  # a single channel, H * W
                                 "y": points_in_direction[0][0]['y'],
                                 "z": prediction_mask[clamp_y(cursor_y), clamp_x(cursor_x)]
                             })
-                            break
+                            return points_in_direction[0]
 
                 else:
                     break
 
                 # After done both directions, assemble a single long curve
             points_in_whole_curve = points_in_direction[1][::-1] + points_in_direction[0]
-            return points_in_whole_curve
+        return points_in_whole_curve
