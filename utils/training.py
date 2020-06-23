@@ -7,16 +7,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.cuda.amp import autocast
 
-from hrnet.lib.core.criterion import CrossEntropy, OhemCrossEntropy
-
 
 def load_criterion(cfg):
 
     def get_criterion(name, class_weights):
-        if name == 'hrnetcrossentropy':
-            print(f"HRNet CrossEntropy with class_weights: {class_weights}")
-            return CrossEntropy(weight=class_weights)
-        elif name == 'crossentropy':
+        if name == 'crossentropy':
             print(f"CrossEntropy with class_weights: {class_weights}")
             return nn.CrossEntropyLoss(weight=class_weights)
         elif name == 'mse':
@@ -176,6 +171,127 @@ def cycle_seg(train_or_test, model, dataloader, epoch, criterion, optimizer, cfg
         writer.add_scalar(f"AccuEpoch/{train_or_test}", accu, epoch)
 
     return loss
+
+
+
+
+
+
+def upsample_pred_if_needed(batch_y_pred, batch_y_true):
+    ph, pw = batch_y_pred.size(-2), batch_y_pred.size(-1)
+    h, w = batch_y_true.size(-2), batch_y_true.size(-1)
+    if ph != h or pw != w:
+        batch_y_pred = F.upsample(
+            input=batch_y_pred, size=(h, w), mode='bilinear')
+        return batch_y_pred
+    else:
+        return batch_y_pred
+
+
+
+
+
+
+def cycle_pose(train_or_test, model, dataloader, epoch, criterion, optimizer, cfg, scheduler=None, writer=None):
+    log_freq = cfg['output']['log_freq']
+    device = cfg['training']['device']
+    mixed_precision = cfg['training'].get('mixed_precision', False)
+    aux_loss_weight = cfg['training'].get('aux_loss', False)
+    meter_loss = Am()
+
+    if train_or_test == 'train':
+        model.train()
+        training = True
+    elif train_or_test == 'test':
+        model.eval()
+        training = False
+    else:
+        raise ValueError(f"train_or_test must be 'train', or 'test', not {train_or_test}")
+
+    def get_loss(y_p, y_t, crit, aux_loss_wt):
+        if aux_loss_weight:
+            loss_aux = crit(y_p['aux'], y_t)
+            loss_out = crit(y_p['out'], y_t)
+            return (loss_aux * aux_loss_wt) + loss_out
+        else:
+            if type(y_p) == OrderedDict:
+                y_p = y_p['out']
+            return crit(y_p, y_t)
+
+    for i_batch, (x, y_true) in enumerate(dataloader):
+        # Forward pass
+        optimizer.zero_grad()
+
+        x = x.to(device, non_blocking=True)
+        y_true = y_true.to(device, non_blocking=True)
+
+        # Forward pass
+        if training:
+            if mixed_precision:
+                with autocast():
+                    y_pred = model(x)
+                    y_pred_ups = upsample_pred_if_needed(y_pred, y_true)
+                    loss = get_loss(y_pred_ups, y_true, criterion, aux_loss_wt=False)
+            else:
+                y_pred = model(x)
+                y_pred_ups = upsample_pred_if_needed(y_pred, y_true)
+                loss = get_loss(y_pred_ups, y_true, criterion, aux_loss_wt=False)
+        else:
+            with torch.no_grad():
+                if mixed_precision:
+                    with autocast():
+                        y_pred = model(x)
+                        y_pred_ups = upsample_pred_if_needed(y_pred, y_true)
+                        loss = get_loss(y_pred_ups, y_true, criterion, aux_loss_wt=False)
+                else:
+                    y_pred = model(x)
+                    y_pred_ups = upsample_pred_if_needed(y_pred, y_true)
+                    loss = get_loss(y_pred_ups, y_true, criterion, aux_loss_wt=False)
+
+        # Backward pass
+        if training:
+            if mixed_precision:
+                model.module.scaler.scale(loss).backward()
+                model.module.scaler.step(optimizer)
+                model.module.scaler.update()
+            else:
+                loss.backward()
+                optimizer.step()
+            if scheduler:
+                scheduler.step()
+
+        meter_loss.update(loss, x.size(0))
+
+        # Loss intra-epoch printing
+        if (i_batch + 1) % log_freq == 0:
+
+            print(f"{train_or_test.upper(): >5} [{i_batch + 1:04d}/{len(dataloader):04d}]"
+                  f"\t\tLOSS: {meter_loss.running_average:.7f}")
+
+            if writer and training:
+                i_iter = ((epoch - 1) * len(dataloader)) + i_batch + 1
+                writer.add_scalar(f"LossIter/{train_or_test}", meter_loss.running_average, i_iter)
+
+    print(f"{train_or_test.upper(): >5} Complete!"
+          f"\t\t\tLOSS: {meter_loss.avg:.7f}")
+
+    loss = float(meter_loss.avg.detach().cpu().numpy())
+
+    if writer:
+        writer.add_scalar(f"LossEpoch/{train_or_test}", loss, epoch)
+
+    return loss
+
+
+
+
+
+
+
+
+
+
+
 
 
 def save_model(state, save_path, test_metric, best_metric, cfg, last_save_path, lowest_best=True, final=False):

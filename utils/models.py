@@ -4,16 +4,11 @@ import torch
 import torch.nn as nn
 from torchvision.models.segmentation import fcn_resnet101, deeplabv3_resnet101
 
-import hrnet.lib.models as hrnetmodels
-from utils.higher_hrnet import get_2dnet_cfg, get_seg_model
+from utils.hrnet import get_hrnet_cfg, get_hrnet_model
 
 def load_seg_model(cfg, load_model_only=False):
     modeltype = cfg['training']['model']
-    if modeltype == 'seg_hrnet':
-        model = hrnetmodels.seg_hrnet.get_seg_model(cfg)
-    elif modeltype == 'higher_hrnet':
-        model = get_seg_model(get_2dnet_cfg())
-    elif modeltype == 'fcn_resnet101':
+    if modeltype == 'fcn_resnet101':
         n_channels = len(cfg['data']['input_classes'])
         n_outputs = len(cfg['data']['output_classes'])
         model = fcn_resnet101(pretrained=False, num_classes=n_outputs)
@@ -24,6 +19,9 @@ def load_seg_model(cfg, load_model_only=False):
         aux_loss = cfg['training']['aux_loss'] is not False
         model = deeplabv3_resnet101(pretrained=False, num_classes=n_outputs, aux_loss=aux_loss)
         model.backbone.conv1 = nn.Conv2d(n_channels, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+    elif modeltype == 'higher_hrnet':
+        hrnet_cfg = get_hrnet_cfg(cfg)
+        model = get_hrnet_model(hrnet_cfg)
     else:
         raise ValueError()
 

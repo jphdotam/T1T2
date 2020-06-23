@@ -6,7 +6,8 @@ resume:
   reset_optimizer: false
 
 data:
-  pngdir: ../data/pngs
+  pngdir_seg: ../data/pngs_seg
+  pngdir_pose: ../data/pngs_pose
   input_classes: [epi, endo]
   output_classes: [background, lvcav, lvwall]
   mean: [1, 0.3023, 0.4016]  # First channel isn't used
@@ -19,6 +20,8 @@ data:
   # export
   dicomdir: "../data/dicoms/by_date_by_study"
   upsample_by_mm: true  # if true, we use dicom pixel_spacing to convert to 1pixel per mm
+  # export pose settings
+  gaussian_sigma: 2
 
 training:
   model: 'deeplabv3_resnet101'

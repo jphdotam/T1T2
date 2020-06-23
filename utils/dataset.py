@@ -17,10 +17,16 @@ class T1T2Dataset(Dataset):
         self.transforms = transforms
         self.fold = fold
 
-        self.pngdir = os.path.join(cfg['data']['pngdir'], cfg['res'])
-
+        self.pose_or_seg = cfg['pose_or_seg']
         self.n_folds = cfg['training']['n_folds']
         self.mixed_precision = cfg['training'].get('mixed_precision', False)
+
+        if self.pose_or_seg == 'seg':
+            self.pngdir = os.path.join(cfg['data']['pngdir_seg'], cfg['res'])
+        elif self.pose_or_seg == 'pose':
+            self.pngdir = cfg['data']['pngdir_pose']
+        else:
+            raise ValueError()
 
         self.dates = self.load_dates()
         self.sequences = self.load_sequences()
@@ -34,20 +40,41 @@ class T1T2Dataset(Dataset):
             return 'test' if random.randint(1, self.n_folds) == self.fold else 'train'
 
         assert self.train_or_test in ('train', 'test')
-        images = sorted(glob(os.path.join(self.pngdir, f"i_*.png")))
-        dates = list({i.split('_')[1].split(' ')[0] for i in images})
+        images = sorted(glob(os.path.join(self.pngdir, f"m_*")))
+        dates = list({os.path.basename(i).split('_')[1].split(' ')[0] for i in images})
         dates = [p for p in dates if get_train_test_for_patient(p) == self.train_or_test]
         return dates
 
     def load_sequences(self):
-        """Get a list of tuples of imagepngs:maskpngs"""
+        if self.pose_or_seg == 'seg':
+            return self._load_sequences_seg()
+        elif self.pose_or_seg == 'pose':
+            return self._load_sequences_pose()
+        else:
+            raise ValueError()
+
+    def _load_sequences_pose(self):
+        """Get a list of tuples of (t1png, t2png, maskpng)"""
+        sequences = []
+        for date in self.dates:
+            t1paths = sorted(glob(os.path.join(self.pngdir, f"t1_{date}_*")))  # Get all images
+            for t1path in t1paths:  # Check matching mask
+                t2path = t1path.replace('t1_', 't2_')
+                maskpath = t1path.replace('t1_', 'm_').replace('.png', '.npz')
+                if os.path.exists(maskpath) and os.path.exists(t2path):
+                    sequences.append((t1path, t2path, maskpath))
+        print(f"{self.train_or_test.upper():<5} FOLD {self.fold}: Loaded {len(sequences)} over {len(self.dates)} dates")
+        return sequences
+
+    def _load_sequences_seg(self):
+        """Get a list of tuples of (imagepng, maskpng)"""
         sequences = []
         for date in self.dates:
             imagepaths = sorted(glob(os.path.join(self.pngdir, f"i_{date}_*")))  # Get all images
             for imgpath in imagepaths:  # Check matching mask
                 maskpath = imgpath.replace('i_', 'm_')
                 if os.path.exists(maskpath):
-                    sequences.append((imgpath, maskpath, None))
+                    sequences.append((imgpath, maskpath))
         print(f"{self.train_or_test.upper():<5} FOLD {self.fold}: Loaded {len(sequences)} over {len(self.dates)} dates")
         return sequences
 
@@ -73,12 +100,53 @@ class T1T2Dataset(Dataset):
         else:
             raise ValueError()
 
-
     def __len__(self):
         return len(self.sequences)
 
     def __getitem__(self, idx):
-        imgpath, maskpath, coords = self.sequences[idx]  # coords will be None if not using high_res mode
+        if self.pose_or_seg == 'seg':
+            return self._getitem_seg(idx)
+        elif self.pose_or_seg == 'pose':
+            return self._getitem_pose(idx)
+        else:
+            raise ValueError()
+
+    def _getitem_pose(self, idx):
+        t1path, t2path, maskpath = self.sequences[idx]  # coords will be None if not using high_res mode
+
+        t1 = skimage.io.imread(t1path)  # Mask is float, therefore so should this be
+        t2 = skimage.io.imread(t2path)
+        mask = (np.load(maskpath, allow_pickle=True)['mask']*255).astype(np.uint8)
+        t1t2mask = np.dstack((t1, t2, mask))
+
+        try:
+            trans = self.transforms(image=t1t2mask)['image']
+        except Exception as e:
+            print(f"exception {e} auging {t1t2mask.shape} from {t1path}, {t2path}, {maskpath}: {t1.shape}, {t2.shape}, {mask.shape}")
+            raise ValueError()
+
+        t1t2mask = trans.transpose([2, 0, 1])
+        img = t1t2mask[:2]
+        mask = t1t2mask[2:4]
+
+        # Scale between 0 and 1, as normalisation will have denormalised, and possibly some augs too, e.g. brightness
+        mask = (mask - mask.min())
+        mask = mask / (mask.max() + 1e-8)
+
+        x = torch.from_numpy(img).float()
+        y = torch.from_numpy(mask).float()
+
+        if self.mixed_precision:
+            x = x.half()
+            y = y.half()
+        else:
+            x = x.float()
+            y = y.float()
+
+        return x, y
+
+    def _getitem_seg(self, idx):
+        imgpath, maskpath = self.sequences[idx]  # coords will be None if not using high_res mode
 
         img = skimage.io.imread(imgpath)
         mask = skimage.io.imread(maskpath)
@@ -95,15 +163,6 @@ class T1T2Dataset(Dataset):
             x = x.float()
 
         return x, y
-
-    def get_max_img_dim(self):
-        max_height, max_width = 0,0
-        for seqs in self.sequences:
-            imgpath, maskpath, _coords = seqs
-            h,w,c = skimage.io.imread(imgpath).shape
-            max_height = max(max_height, h)
-            max_width = max(max_width, w)
-        return max_height, max_width
 
     def get_normalisation_params_for_images(self, max=2000):
         mean, std = 0, 0

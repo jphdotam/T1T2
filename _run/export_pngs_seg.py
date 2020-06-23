@@ -76,13 +76,7 @@ def check_pixel_spacings(list_of_dicompaths):
 
 labelpaths = glob(os.path.join(dicom_dir, "**", "label.pickle"), recursive=True)
 for labelpath in tqdm(labelpaths):
-    """Steps:
-    
-    1) Check all labels are present
-    2) Check every dicom in folder has similar pixel pacing and pixels are square
-    3) 
-    
-    """
+
     label = load_pickle(labelpath)
     if any(label_class not in label for label_class in label_classes):
         print(f"Labels missing for study {labelpath} (only {label.keys()} present)")
