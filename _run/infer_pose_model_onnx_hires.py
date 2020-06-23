@@ -42,6 +42,8 @@ img_crop_cl, topleft_crop = center_crop(pad_if_needed(img_mm_cl, FOV_CROP, FOV_C
 img_crop_cl_norm = (img_crop_cl - MEAN) / STD
 if DOUBLE_INPUT_RES:
     img_crop_cf = skimage.transform.rescale(img_crop_cl_norm, 2, order=3, multichannel=True).transpose((2, 0, 1))
+else:
+    img_crop_cf = img_crop_cl_norm.transpose((2, 0, 1))
 
 # Predict
 # Load the ONNX low-res model
