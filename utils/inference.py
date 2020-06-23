@@ -55,7 +55,7 @@ def center_crop(img, crop_height, crop_width, centre=None):
 
 
 def pose_mask_to_coords(prediction_mask,  # a single channel, H * W
-                        default_relative_step_size=1/30,
+                        default_relative_step_size=1/50,
                         minimum_probability_to_trace=0.001,
                         inertia=0.2,
                         minimum_bend_cosine=-0.2,
@@ -73,6 +73,10 @@ def pose_mask_to_coords(prediction_mask,  # a single channel, H * W
             y = y.cpu().numpy()
         return int(np.clip(y, 0, img_height - 1))
 
+    def distance_from_point(proposed_x, proposed_y, point):
+        return (proposed_x - point["x"]) ** 2 + (proposed_y - point["y"]) ** 2
+
+
     def distance_from_nearest_other_point(proposed_coord, two_lists_of_points):
         """Returns (in network pixels) the distance between the proposed coord and the closes existing ridge point"""
 
@@ -82,14 +86,12 @@ def pose_mask_to_coords(prediction_mask,  # a single channel, H * W
         unified_list_of_points = two_lists_of_points[0] + two_lists_of_points[1]
 
         # L2 distance between the proposed point and each of the existing ridge traced points in PNG units
-        r2 = [(proposed_x-curve_point["x"])**2 + (proposed_y-curve_point["y"])**2
-            for curve_point in unified_list_of_points
-        ]
+        r2 = [distance_from_point(proposed_x, proposed_y, curve_point) for curve_point in unified_list_of_points]
 
         r_pixels = np.sqrt(np.array(r2))
         return min(r_pixels) if len(r_pixels) >= 1 else None
 
-    step_size = int(np.max([img_height, img_width]) * default_relative_step_size)
+    step_size = max(int(np.max([img_height, img_width]) * default_relative_step_size), 1)
 
     if np.max(prediction_mask) >= minimum_probability_to_trace:
         # Pick the brightest starting point and go in both directions
@@ -151,15 +153,25 @@ def pose_mask_to_coords(prediction_mask,  # a single channel, H * W
                                                       ((direction == 0 and i_cursor == 0) or
                                                        (direction == 1 and len(points_in_direction[0]) <= 1))
 
-                if need_this_point_to_get_to_minimum_3 or (
-                        probability_enough and straight_enough and far_enough_away):
-                    points_in_direction[direction].append({
-                        "x": clamp_x(cursor_x),
-                        "y": clamp_y(cursor_y),
-                        "z": prediction_mask[clamp_y(cursor_y), clamp_x(cursor_x)]
-                    })
+                if need_this_point_to_get_to_minimum_3 or (probability_enough and straight_enough):
+                    if far_enough_away:
+                        points_in_direction[direction].append({
+                            "x": clamp_x(cursor_x),
+                            "y": clamp_y(cursor_y),
+                            "z": prediction_mask[clamp_y(cursor_y), clamp_x(cursor_x)]
+                        })
+                    else:
+                        # Found a point, but close to another one
+                        # If direction 0 and we've got back on ourselves, we've managed to trace the surface in 1 run
+                        if direction == 0 and distance_from_point(cursor_x, cursor_y, points_in_direction[0][0]):
+                            points_in_direction[direction].append({
+                                "x": points_in_direction[0][0]['x'],
+                                "y": points_in_direction[0][0]['y'],
+                                "z": prediction_mask[clamp_y(cursor_y), clamp_x(cursor_x)]
+                            })
+                            break
 
-                else:  # ... the probability surface has come down to rubbish levels, or the curve is bending back on itself too much to be plausible.
+                else:
                     break
 
                 # After done both directions, assemble a single long curve
