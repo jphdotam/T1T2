@@ -8,8 +8,8 @@ from utils.models import load_seg_model
 from utils.transforms import get_segmentation_transforms
 
 CONFIG = "../experiments/016.yaml"
-MODEL_PATH = "../output/models/016/1_85_0.0176272.pt"
-OUT_DIR = "../output/models/016/"
+MODEL_PATH = "../../output/models/016/1_85_0.0176272.pt"
+OUT_DIR = "../../output/models/016/"
 
 # Load config & ensure not data parallel
 cfg, vis_dir, model_dir = load_config(CONFIG)

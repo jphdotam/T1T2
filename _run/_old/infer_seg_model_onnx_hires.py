@@ -75,8 +75,8 @@ def center_crop(img, crop_height, crop_width, centre=None):
 # path_t2 = "../data/dicoms/by_date_by_study/20200423/T1SR_Mapping_SASHA_HC_T1T2_141613_5906470_5906478_97_20200423-102518_dicom/T2_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.dcm"
 # path_t1 = "../data/dicoms/by_date_by_study/20200505/T1SR_Mapping_SASHA_HC_T1T2_42363_622646938_622646943_2398_20200505-120210_dicom/T1_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.dcm"
 # path_t2 = "../data/dicoms/by_date_by_study/20200505/T1SR_Mapping_SASHA_HC_T1T2_42363_622646938_622646943_2398_20200505-120210_dicom/T2_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.dcm"
-path_t1 = "../data/dicoms/bdbs_new/20200615/T1SR_Mapping_SASHA_HC_T1T2_42363_671978570_671978575_58_20200615-103059_dicom/T1_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.dcm"
-path_t2 = "../data/dicoms/bdbs_new/20200615/T1SR_Mapping_SASHA_HC_T1T2_42363_671978570_671978575_58_20200615-103059_dicom/T2_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.dcm"
+path_t1 = "../../data/dicoms/bdbs_new/20200615/T1SR_Mapping_SASHA_HC_T1T2_42363_671978570_671978575_58_20200615-103059_dicom/T1_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.dcm"
+path_t2 = "../../data/dicoms/bdbs_new/20200615/T1SR_Mapping_SASHA_HC_T1T2_42363_671978570_671978575_58_20200615-103059_dicom/T2_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.dcm"
 
 
 # LOW RES
@@ -99,7 +99,7 @@ img_lowres_cf = img_lowres_cl.transpose((2, 0, 1))  # 2 * H * W
 
 # Predict
 # Load the ONNX low-res model
-sess = ort.InferenceSession("../output/models/016/t1t2_dlv3_lowres.onnx")
+sess = ort.InferenceSession("../../output/models/016/t1t2_dlv3_lowres.onnx")
 input_name = sess.get_inputs()[0].name
 output_name = sess.get_outputs()[0].name
 img_batch_lowres = np.expand_dims(img_lowres_cf, 0).astype(np.float32)
@@ -120,7 +120,7 @@ img_highres_cf = img_highres_cl.transpose((2, 0, 1))  # 2 * H * W
 
 # Predict
 # Load the ONNX high-res model
-sess = ort.InferenceSession("../output/models/020/t1t2_dlv3_hires.onnx")
+sess = ort.InferenceSession("../../output/models/020/t1t2_dlv3_hires.onnx")
 input_name = sess.get_inputs()[0].name
 output_name = sess.get_outputs()[0].name
 img_batch_highres = np.expand_dims(img_highres_cf, 0).astype(np.float32)

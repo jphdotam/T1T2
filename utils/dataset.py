@@ -180,3 +180,15 @@ class T1T2Dataset(Dataset):
             mean += mask.mean(1)
             std += mask.std(1)
         return mean / len(sequences), std / len(sequences)
+
+    def get_dicom_paths_from_seqences(self, sequence_tuple):
+        t1pngpath, t2pngpath, masknpzpath = sequence_tuple
+        dicom_root = self.cfg['data']['dicomdir']
+        t1pngname = os.path.splitext(os.path.basename(t1pngpath))[0]
+        date, study = os.path.basename(t1pngname).split('_', 2)[1:]
+        t1paths = glob(os.path.join(dicom_root, date, study, "T1*dcm"))
+        t2paths = glob(os.path.join(dicom_root, date, study, "T2*dcm"))
+        assert len(t1paths) == 1 and len(t2paths) == 1
+        return t1paths[0], t2paths[0]
+
+
