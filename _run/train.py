@@ -11,7 +11,7 @@ from utils.tensorboard import get_summary_writer
 from utils.vis import vis_seg, vis_pose
 
 
-CONFIG = "../experiments/022.yaml"
+CONFIG = "../experiments/023.yaml"
 
 if __name__ ==  "__main__":
     fold = 1

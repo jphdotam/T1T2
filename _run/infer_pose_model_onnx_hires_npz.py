@@ -1,3 +1,4 @@
+import os
 import pydicom
 import numpy as np
 import skimage.transform
@@ -6,6 +7,8 @@ import matplotlib.pyplot as plt
 import onnxruntime as ort
 
 from utils.inference import center_crop, dicom_to_img, pad_if_needed, pose_mask_to_coords
+from utils.dataset import T1T2Dataset
+from utils.cfg import load_config
 
 # Settings
 MEAN = [0.3023, 0.4016]
@@ -18,22 +21,15 @@ MODELPATH = "../output/models/022/hrnet_pose.onnx"
 RAISE_TO_POWER = 3
 NORMALISE_PREDS = True
 
-# Load data
+
+
+path_t1, path_t2 = ds_test.get_dicom_paths_from_seqences(seq)
 # path_t1 = "../data/dicoms/by_date_by_study/20200423/T1SR_Mapping_SASHA_HC_T1T2_141613_5906470_5906478_97_20200423-102518_dicom/T1_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.dcm"
 # path_t2 = "../data/dicoms/by_date_by_study/20200423/T1SR_Mapping_SASHA_HC_T1T2_141613_5906470_5906478_97_20200423-102518_dicom/T2_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.dcm"
 # path_t1 = "../data/dicoms/by_date_by_study/20200505/T1SR_Mapping_SASHA_HC_T1T2_42363_622646938_622646943_2398_20200505-120210_dicom/T1_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.dcm"
 # path_t2 = "../data/dicoms/by_date_by_study/20200505/T1SR_Mapping_SASHA_HC_T1T2_42363_622646938_622646943_2398_20200505-120210_dicom/T2_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.dcm"
 # path_t1 = "../data/dicoms/bdbs_new/20200615/T1SR_Mapping_SASHA_HC_T1T2_42363_671978570_671978575_58_20200615-103059_dicom/T1_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.dcm"
 # path_t2 = "../data/dicoms/bdbs_new/20200615/T1SR_Mapping_SASHA_HC_T1T2_42363_671978570_671978575_58_20200615-103059_dicom/T2_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.dcm"
-
-# path_t1 = "E:/hui/T1_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.dcm"
-# path_t2 = "E:/hui/T2_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.dcm"
-
-# path_t1 = "E:/hui/T1_SLC1_CON0_PHS0_REP0_SET0_AVE0_4.dcm"
-# path_t2 = "E:/hui/T2_SLC1_CON0_PHS0_REP0_SET0_AVE0_4.dcm"
-
-path_t1 = "E:/hui/T1_SLC2_CON0_PHS0_REP0_SET0_AVE0_7.dcm"
-path_t2 = "E:/hui/T2_SLC2_CON0_PHS0_REP0_SET0_AVE0_7.dcm"
 
 # Load DICOM
 img_t1_native = dicom_to_img(path_t1)
@@ -95,5 +91,7 @@ for i_sequence, sequence in enumerate(('T1', 'T2')):
         # bottom row - image & interpreted masks
         axes[1][i_sequence].imshow(img_dcm, cmap='gray')
         axes[1][i_sequence].plot(xs, ys)
+        fig.suptitle(f"{i_seq}: {seq[0]}")
 
+plt.savefig(os.path.join("../output/predictions/", f"{i_seq}.png"))
 plt.show()

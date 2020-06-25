@@ -61,8 +61,6 @@ def pose_mask_to_coords(prediction_mask,  # a single channel, H * W
                         minimum_bend_cosine=-0.2,
                         far_enough_fraction=0.5):  # How far away each ridge point step must be from the closest other points (to prevent bendback). Don't drop below 0.5
 
-    img_height, img_width = prediction_mask.shape
-
     def clamp_x(x):
         if type(x) == torch.Tensor:
             x = x.cpu().numpy()
@@ -75,7 +73,6 @@ def pose_mask_to_coords(prediction_mask,  # a single channel, H * W
 
     def distance_from_point(proposed_x, proposed_y, point):
         return (proposed_x - point["x"]) ** 2 + (proposed_y - point["y"]) ** 2
-
 
     def distance_from_nearest_other_point(proposed_coord, two_lists_of_points):
         """Returns (in network pixels) the distance between the proposed coord and the closes existing ridge point"""
@@ -91,6 +88,7 @@ def pose_mask_to_coords(prediction_mask,  # a single channel, H * W
         r_pixels = np.sqrt(np.array(r2))
         return min(r_pixels) if len(r_pixels) >= 1 else None
 
+    img_height, img_width = prediction_mask.shape
     step_size = max(int(np.max([img_height, img_width]) * default_relative_step_size), 1)
 
     if np.max(prediction_mask) >= minimum_probability_to_trace:
@@ -174,6 +172,6 @@ def pose_mask_to_coords(prediction_mask,  # a single channel, H * W
                 else:
                     break
 
-                # After done both directions, assemble a single long curve
-            points_in_whole_curve = points_in_direction[1][::-1] + points_in_direction[0]
+        # After done both directions, assemble a single long curve
+        points_in_whole_curve = points_in_direction[1][::-1] + points_in_direction[0]
         return points_in_whole_curve
