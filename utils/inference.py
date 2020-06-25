@@ -57,7 +57,7 @@ def center_crop(img, crop_height, crop_width, centre=None):
 def pose_mask_to_coords(prediction_mask,  # a single channel, H * W
                         default_relative_step_size=1/50,
                         minimum_probability_to_trace=0.001,
-                        inertia=0.2,
+                        inertia=0.5,
                         minimum_bend_cosine=-0.2,
                         far_enough_fraction=0.5):  # How far away each ridge point step must be from the closest other points (to prevent bendback). Don't drop below 0.5
 
@@ -170,6 +170,7 @@ def pose_mask_to_coords(prediction_mask,  # a single channel, H * W
                             return points_in_direction[0]
 
                 else:
+                    print(f"Breaking {need_this_point_to_get_to_minimum_3} {probability_enough} {straight_enough}")
                     break
 
         # After done both directions, assemble a single long curve

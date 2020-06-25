@@ -26,7 +26,7 @@ CONFIG = "../experiments/022.yaml"
 cfg, vis_dir, model_dir = load_config(CONFIG)
 ds_test = T1T2Dataset(cfg, 'test', None, 1)
 for i_seq, seq in enumerate(ds_test.sequences):
-    #path_t1, path_t2 = ds_test.get_dicom_paths_from_seqences(seq)
+    path_t1, path_t2 = ds_test.get_dicom_paths_from_seqences(seq)
     # path_t1 = "../data/dicoms/by_date_by_study/20200423/T1SR_Mapping_SASHA_HC_T1T2_141613_5906470_5906478_97_20200423-102518_dicom/T1_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.dcm"
     # path_t2 = "../data/dicoms/by_date_by_study/20200423/T1SR_Mapping_SASHA_HC_T1T2_141613_5906470_5906478_97_20200423-102518_dicom/T2_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.dcm"
     # path_t1 = "../data/dicoms/by_date_by_study/20200505/T1SR_Mapping_SASHA_HC_T1T2_42363_622646938_622646943_2398_20200505-120210_dicom/T1_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.dcm"
