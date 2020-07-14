@@ -23,9 +23,9 @@ NORMALISE_PREDS = True
 
 
 
-path_t1, path_t2 = ds_test.get_dicom_paths_from_seqences(seq)
-# path_t1 = "../data/dicoms/by_date_by_study/20200423/T1SR_Mapping_SASHA_HC_T1T2_141613_5906470_5906478_97_20200423-102518_dicom/T1_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.dcm"
-# path_t2 = "../data/dicoms/by_date_by_study/20200423/T1SR_Mapping_SASHA_HC_T1T2_141613_5906470_5906478_97_20200423-102518_dicom/T2_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.dcm"
+# path_t1, path_t2 = ds_test.get_dicom_paths_from_seqences(seq)
+path_t1 = "../data/dicoms/by_date_by_study/20200423/T1SR_Mapping_SASHA_HC_T1T2_141613_5906470_5906478_97_20200423-102518_dicom/T1_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.dcm"
+path_t2 = "../data/dicoms/by_date_by_study/20200423/T1SR_Mapping_SASHA_HC_T1T2_141613_5906470_5906478_97_20200423-102518_dicom/T2_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.dcm"
 # path_t1 = "../data/dicoms/by_date_by_study/20200505/T1SR_Mapping_SASHA_HC_T1T2_42363_622646938_622646943_2398_20200505-120210_dicom/T1_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.dcm"
 # path_t2 = "../data/dicoms/by_date_by_study/20200505/T1SR_Mapping_SASHA_HC_T1T2_42363_622646938_622646943_2398_20200505-120210_dicom/T2_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.dcm"
 # path_t1 = "../data/dicoms/bdbs_new/20200615/T1SR_Mapping_SASHA_HC_T1T2_42363_671978570_671978575_58_20200615-103059_dicom/T1_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.dcm"
@@ -91,7 +91,7 @@ for i_sequence, sequence in enumerate(('T1', 'T2')):
         # bottom row - image & interpreted masks
         axes[1][i_sequence].imshow(img_dcm, cmap='gray')
         axes[1][i_sequence].plot(xs, ys)
-        fig.suptitle(f"{i_seq}: {seq[0]}")
+        fig.suptitle(f"{i_sequence}: {sequence}")
 
 plt.savefig(os.path.join("../output/predictions/", f"{i_seq}.png"))
 plt.show()

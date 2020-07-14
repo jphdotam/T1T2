@@ -1,7 +1,8 @@
 import os
+import numpy as np
 import sys, traceback
 import pyqtgraph as pg
-from glob import glob
+from scipy.stats import iqr
 from collections import defaultdict
 
 from PyQt5 import QtCore, QtWidgets, QtGui
@@ -13,7 +14,8 @@ from labelling.ui.css import css
 from labelling.ui.layout_label import Ui_MainWindow
 from utils.dicoms import save_pickle, load_pickle, dicom_to_img, get_sequences
 
-DICOMDIR = "../data/dicoms/bdbs_new/"
+DATADIR = "D:/Data/T1T2"
+OLD_PATH = "D:\\Dropbox\\Work\\Other projects\\T1T2\\data\\dicoms\\by_date_by_study"
 
 if QtCore.QT_VERSION >= 0x50501:
     def excepthook(type_, value, traceback_):
@@ -25,10 +27,10 @@ LABELS = ('endo', 'epi', 'myo')
 
 
 class MainWindowUI(Ui_MainWindow):
-    def __init__(self, mainwindow, dicom_root_dir=DICOMDIR):
+    def __init__(self, mainwindow, data_root_dir=DATADIR):
 
         super(MainWindowUI, self).__init__()
-        self.dicom_root_dir = dicom_root_dir
+        self.data_root_dir = data_root_dir
         self.mainwindow = mainwindow
         self.setupUi(mainwindow)
         self.plotWidget.setAspectLocked(True)
@@ -36,7 +38,10 @@ class MainWindowUI(Ui_MainWindow):
 
         self.activelabel_name = LABELS[0]
 
-        self.studypath = None
+        self.t1map_path = None
+        self.t2map_path = None
+        self.t2img_path = None
+
         self.img_array = None
         self.roi_coords = defaultdict(list)
         self.roi_selectors = {}
@@ -46,7 +51,7 @@ class MainWindowUI(Ui_MainWindow):
                              'myo': self.pushButton_myo}
         self.labelmode = 'add'
 
-        self.sequences = get_sequences(self.dicom_root_dir)
+        self.sequences = get_sequences(self.data_root_dir)
         self.refresh_studyselector()
         self.comboBox_studies.activated.connect(self.load_study)
         self.comboBox_sequences.activated.connect(self.load_sequence)
@@ -58,23 +63,32 @@ class MainWindowUI(Ui_MainWindow):
         self.comboBox_studies.addItem("Please select a study")
         for sequence_id, sequence_dict in self.sequences.items():
             self.comboBox_studies.addItem(sequence_id)
-            color = "green" if sequence_dict['reported'] else "red"
-            self.comboBox_studies.setItemData(self.comboBox_studies.count()-1, QtGui.QColor(color), QtCore.Qt.BackgroundRole)
+
+            if sequence_dict['reported']:
+                colour = 'green'
+            # elif sequence_dict['reported_old']:
+            #     colour = 'yellow'
+            else:
+                colour = 'red'
+
+            self.comboBox_studies.setItemData(self.comboBox_studies.count()-1, QtGui.QColor(colour), QtCore.Qt.BackgroundRole)
 
     def load_study(self):
         self.comboBox_sequences.clear()
         try:
             sequence_id = self.comboBox_studies.currentText()
-            studypath = self.sequences[sequence_id]['path']
-            self.studypath = studypath
+            self.t1map_path = self.sequences[sequence_id]['t1map_path']
+            self.t2map_path = self.sequences[sequence_id]['t2map_path']
+            self.t2img_path = self.sequences[sequence_id]['t2img_path']
+            self.report_path  = self.sequences[sequence_id]['report_path']
+            # self.report_path_old = self.sequences[sequence_id]['report_path_old']
 
-            dicomnames = [os.path.basename(f) for f in glob(os.path.join(self.studypath, "*.dcm"))]
-            for i_dcm, dicomname in enumerate(dicomnames):
-                self.comboBox_sequences.addItem(dicomname)
-                if 'T2' in dicomname:
-                    self.comboBox_sequences.setCurrentIndex(i_dcm)
+            self.comboBox_sequences.addItem(self.t1map_path)
+            self.comboBox_sequences.addItem(self.t2map_path)
+            self.comboBox_sequences.addItem(self.t2img_path)
+            self.comboBox_sequences.setCurrentIndex(2)  # Select T2img by default
 
-            self.roi_coords = self.load_coords(self.studypath)
+            self.roi_coords = self.load_coords(self.report_path)
             self.load_sequence()
 
             self.activelabel_name = LABELS[0]
@@ -83,25 +97,34 @@ class MainWindowUI(Ui_MainWindow):
             print(e)
 
     def load_sequence(self):
-        dicomname = self.comboBox_sequences.currentText()
-        dicompath = os.path.join(self.studypath, dicomname)
-        print(f"dicompath is {dicompath}")
-        self.img_array = dicom_to_img(dicompath)
+        numpy_path = self.comboBox_sequences.currentText()
+        img_array = np.load(numpy_path)
+        if os.path.basename(os.path.dirname(numpy_path)) == 't2_last_image_numpy':
+            print(f"Rescaling")
+            img_array = img_array - np.min(img_array)
+            img_array = img_array / iqr(img_array)
+            img_array = np.clip(img_array, 0, 2)
+
+        self.img_array = img_array
         self.draw_image_and_rois()
 
-    def get_pickle_path(self, studypath=None):
-        if studypath is None:
-            studypath = self.studypath
-        return os.path.join(studypath, f"label.pickle")
+    # def remap_old_coords(self, old_coords):
+    #     print(old_coords)
+    #     new_coords = defaultdict(list)
+    #     dims = old_coords['dims']
+    #     print(dims)
+    #     for point_name, points in old_coords.items():
+    #         if point_name != 'dims':
+    #             new_coords[point_name] = [[x,dims[0]-y] for x,y in points]
+    #     return new_coords
 
-    def load_coords(self, studypath=None):
-        if studypath is None:
-            studypath = self.studypath
-        pickle_path = self.get_pickle_path(studypath)
-
-        if os.path.exists(pickle_path):
-            print(f"Loading {pickle_path}")
-            return load_pickle(pickle_path)
+    def load_coords(self, report_path=None):
+        if report_path is None:
+            report_path = self.report_path
+        if os.path.exists(report_path):
+            return load_pickle(report_path)
+        # elif os.path.exists(self.report_path_old):
+        #     return self.remap_old_coords(load_pickle(self.report_path_old))
         else:
             return defaultdict(list)
 
@@ -114,7 +137,6 @@ class MainWindowUI(Ui_MainWindow):
         # Numbers -> Labels
         for i, label in enumerate(LABELS):
             shortcut_key = f"{i + 1}"
-            print(f"sc {shortcut_key}")
             shortcut = QShortcut(QKeySequence(shortcut_key), self.labelbuttons[label])
             shortcut.activated.connect(lambda labelname=label: self.action_labelbutton(labelname))
             self.shortcuts[label] = shortcut
@@ -167,16 +189,16 @@ class MainWindowUI(Ui_MainWindow):
 
     def draw_buttons(self):
         # Edit button
-        if self.labelmode=='add':
-            modetext = 'Add mode'
-            modestyle = css['modebutton_add']
-        elif self.labelmode=='edit':
-            modetext = 'Edit mode'
-            modestyle = css['modebutton_edit']
+        if self.labelmode == 'add':
+            mode_text = 'Add mode'
+            mode_style = css['modebutton_add']
+        elif self.labelmode == 'edit':
+            mode_text = 'Edit mode'
+            mode_style = css['modebutton_edit']
         else:
             raise ValueError()
-        self.pushButton_mode.setText(modetext)
-        self.pushButton_mode.setStyleSheet(modestyle)
+        self.pushButton_mode.setText(mode_text)
+        self.pushButton_mode.setStyleSheet(mode_style)
         self.draw_image_and_rois(fix_roi=True)
 
         # Label buttons
@@ -235,17 +257,16 @@ class MainWindowUI(Ui_MainWindow):
                 point = segment.listPoints()[0]
                 self.roi_coords[roi_name].append([point.x(), point.y()])
         # Finally save
-        if self.studypath:
+        if self.t1map_path:
             self.save_coords()
 
-    def save_coords(self, studypath=None):
+    def save_coords(self, report_path=None):
         out_dict = self.roi_coords
         out_dict['dims'] = self.img_array.shape
-        if studypath is None:
-            studypath = self.studypath
-        pickle_path = self.get_pickle_path(studypath)
-        print(f"Saving as {pickle_path}")
-        save_pickle(pickle_path, out_dict)
+        if report_path is None:
+            report_path = self.report_path
+        print(f"Saving as {report_path}")
+        save_pickle(report_path, out_dict)
 
     def add_node_at_mouse(self, event):
         self.labelbuttons[self.activelabel_name].setStyleSheet(css['labelbutton_active_green'])
@@ -255,7 +276,7 @@ class MainWindowUI(Ui_MainWindow):
         print(self.roi_coords[self.activelabel_name])
         self.draw_image_and_rois(fix_roi=True)
         # Finally save
-        if self.studypath:
+        if self.t1map_path:
             self.save_coords()
 
 
