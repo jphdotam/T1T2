@@ -2,8 +2,10 @@ import os
 import numpy as np
 import sys, traceback
 import pyqtgraph as pg
+from matplotlib import cm
 from scipy.stats import iqr
 from collections import defaultdict
+
 
 from PyQt5 import QtCore, QtWidgets, QtGui
 from PyQt5.QtCore import pyqtSlot
@@ -12,7 +14,8 @@ from PyQt5.QtWidgets import QWidget, QShortcut
 
 from labelling.ui.css import css
 from labelling.ui.layout_label import Ui_MainWindow
-from utils.dicoms import save_pickle, load_pickle, dicom_to_img, get_sequences
+from utils.cmaps import default_cmap
+from utils.dicoms import save_pickle, load_pickle, get_studies, window_numpy
 
 DATADIR = "D:/Data/T1T2"
 OLD_PATH = "D:\\Dropbox\\Work\\Other projects\\T1T2\\data\\dicoms\\by_date_by_study"
@@ -25,6 +28,10 @@ sys.excepthook = excepthook
 
 LABELS = ('endo', 'epi', 'myo')
 
+SEQUENCE_WINDOWS = {
+    't1_map_numpy': [{'wc':1300, 'ww':1300}, {'wc':500, 'ww':1000}],
+    't2_map_numpy': [{'wc':60, 'ww':120}],
+}
 
 class MainWindowUI(Ui_MainWindow):
     def __init__(self, mainwindow, data_root_dir=DATADIR):
@@ -51,7 +58,7 @@ class MainWindowUI(Ui_MainWindow):
                              'myo': self.pushButton_myo}
         self.labelmode = 'add'
 
-        self.sequences = get_sequences(self.data_root_dir)
+        self.sequences = get_studies(self.data_root_dir)
         self.refresh_studyselector()
         self.comboBox_studies.activated.connect(self.load_study)
         self.comboBox_sequences.activated.connect(self.load_sequence)
@@ -98,33 +105,34 @@ class MainWindowUI(Ui_MainWindow):
 
     def load_sequence(self):
         numpy_path = self.comboBox_sequences.currentText()
+        sequence_type = os.path.basename(os.path.dirname(numpy_path))
+
         img_array = np.load(numpy_path)
-        if os.path.basename(os.path.dirname(numpy_path)) == 't2_last_image_numpy':
-            print(f"Rescaling")
-            img_array = img_array - np.min(img_array)
-            img_array = img_array / iqr(img_array)
-            img_array = np.clip(img_array, 0, 2)
+        try:
+            window_centre = SEQUENCE_WINDOWS[sequence_type][0]['wc']
+            window_width = SEQUENCE_WINDOWS[sequence_type][0]['ww']
+            cmap = default_cmap
+
+        except KeyError:
+            # No wc/ww for this, so use median for wc and 2* IQR for WW
+            window_centre = np.median(img_array)
+            window_width = iqr(img_array) * 2
+            cmap = cm.gray
+
+        img_array = window_numpy(img_array,
+                                 window_centre=window_centre,
+                                 window_width=window_width,
+                                 cmap=cmap)
 
         self.img_array = img_array
         self.draw_image_and_rois()
 
-    # def remap_old_coords(self, old_coords):
-    #     print(old_coords)
-    #     new_coords = defaultdict(list)
-    #     dims = old_coords['dims']
-    #     print(dims)
-    #     for point_name, points in old_coords.items():
-    #         if point_name != 'dims':
-    #             new_coords[point_name] = [[x,dims[0]-y] for x,y in points]
-    #     return new_coords
 
     def load_coords(self, report_path=None):
         if report_path is None:
             report_path = self.report_path
         if os.path.exists(report_path):
             return load_pickle(report_path)
-        # elif os.path.exists(self.report_path_old):
-        #     return self.remap_old_coords(load_pickle(self.report_path_old))
         else:
             return defaultdict(list)
 

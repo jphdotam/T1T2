@@ -42,8 +42,19 @@ def dicom_to_img(dicom):
     frame = (frame * 255).astype(np.uint8)
     return frame
 
+def window_numpy(nparray, window_centre, window_width, cmap=None, rescale_255=True):
+    v_min = window_centre - (window_width//2)
+    v_max = window_centre + (window_width//2)
+    nparray = np.clip(nparray, v_min, v_max)
+    nparray = nparray - v_min
+    nparray = nparray / window_width
+    if rescale_255:
+        nparray = (nparray * 255).astype(np.uint8)
+    if cmap:
+        nparray = cmap(nparray)
+    return nparray
 
-def get_sequences(path, old_path=None):
+def get_studies(path, old_path=None):
     sequences = {}
     hospital_dirs = [f for f in sorted(glob(os.path.join(path, "*"))) if os.path.isdir(f)]
     for hospital_dir in hospital_dirs:
