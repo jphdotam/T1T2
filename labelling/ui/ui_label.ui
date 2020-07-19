@@ -17,9 +17,9 @@
    <string>Image Annotator</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QGridLayout" name="gridLayout" columnstretch="1,3">
+   <layout class="QGridLayout" name="gridLayout" columnstretch="1,6">
     <item row="0" column="1">
-     <layout class="QVBoxLayout" name="verticalLayout_Centre">
+     <layout class="QVBoxLayout" name="verticalLayout_Centre" stretch="1,1,40">
       <item>
        <layout class="QHBoxLayout" name="horizontalLayout_Study" stretch="8,1,1">
         <item>
@@ -49,31 +49,6 @@
         </item>
         <item>
          <widget class="QPushButton" name="pushButton_nextstudy">
-          <property name="text">
-           <string>Next</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
-      <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_Seq" stretch="8,1,1">
-        <item>
-         <widget class="QComboBox" name="comboBox_sequences">
-          <property name="currentText">
-           <string/>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="pushButton_prevseq">
-          <property name="text">
-           <string>Prev</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="pushButton_nextseq">
           <property name="text">
            <string>Next</string>
           </property>
@@ -181,11 +156,7 @@
        </layout>
       </item>
       <item>
-       <widget class="PlotWidget" name="plotWidget">
-        <property name="enabled">
-         <bool>true</bool>
-        </property>
-       </widget>
+       <layout class="QHBoxLayout" name="horizontalLayout_Plots"/>
       </item>
      </layout>
     </item>
@@ -322,13 +293,6 @@ p, li { white-space: pre-wrap; }
    </property>
   </action>
  </widget>
- <customwidgets>
-  <customwidget>
-   <class>PlotWidget</class>
-   <extends>QGraphicsView</extends>
-   <header>pyqtgraph</header>
-  </customwidget>
- </customwidgets>
  <resources/>
  <connections/>
 </ui>

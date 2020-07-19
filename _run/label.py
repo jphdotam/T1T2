@@ -2,8 +2,10 @@ import os
 import numpy as np
 import sys, traceback
 import pyqtgraph as pg
+import matplotlib.pyplot as plt
 from scipy.stats import iqr
-from collections import defaultdict
+from pyqtgraph import PlotWidget
+from collections import defaultdict, namedtuple
 
 from PyQt5 import QtCore, QtWidgets, QtGui
 from PyQt5.QtCore import pyqtSlot
@@ -12,7 +14,8 @@ from PyQt5.QtWidgets import QWidget, QShortcut
 
 from labelling.ui.css import css
 from labelling.ui.layout_label import Ui_MainWindow
-from utils.dicoms import save_pickle, load_pickle, dicom_to_img, get_sequences
+from utils.cmaps import default_cmap
+from utils.dicoms import save_pickle, load_pickle, get_studies, window_numpy
 
 DATADIR = "D:/Data/T1T2"
 OLD_PATH = "D:\\Dropbox\\Work\\Other projects\\T1T2\\data\\dicoms\\by_date_by_study"
@@ -25,6 +28,10 @@ sys.excepthook = excepthook
 
 LABELS = ('endo', 'epi', 'myo')
 
+SEQUENCE_WINDOWS = {
+    't1map': [{'wc':1300, 'ww':1300}, {'wc':500, 'ww':1000}],
+    't2map': [{'wc':60, 'ww':120}]
+}
 
 class MainWindowUI(Ui_MainWindow):
     def __init__(self, mainwindow, data_root_dir=DATADIR):
@@ -33,16 +40,7 @@ class MainWindowUI(Ui_MainWindow):
         self.data_root_dir = data_root_dir
         self.mainwindow = mainwindow
         self.setupUi(mainwindow)
-        self.plotWidget.setAspectLocked(True)
-        self.imageItem = None
 
-        self.activelabel_name = LABELS[0]
-
-        self.t1map_path = None
-        self.t2map_path = None
-        self.t2img_path = None
-
-        self.img_array = None
         self.roi_coords = defaultdict(list)
         self.roi_selectors = {}
         self.shortcuts = {}
@@ -50,81 +48,140 @@ class MainWindowUI(Ui_MainWindow):
                              'epi': self.pushButton_epi,
                              'myo': self.pushButton_myo}
         self.labelmode = 'add'
+        self.activelabel_name = LABELS[0]
 
-        self.sequences = get_sequences(self.data_root_dir)
+        # plots will store a list of each of:
+        # 1) image_arrays
+        # 2) image_items
+        # 3) plot_widgets
+
+        self.plots = {}
+
+        self.studies = get_studies(self.data_root_dir)
         self.refresh_studyselector()
         self.comboBox_studies.activated.connect(self.load_study)
-        self.comboBox_sequences.activated.connect(self.load_sequence)
 
         self.create_shortcuts()
 
     def refresh_studyselector(self):
         self.comboBox_studies.clear()
         self.comboBox_studies.addItem("Please select a study")
-        for sequence_id, sequence_dict in self.sequences.items():
+        for sequence_id, sequence_dict in self.studies.items():
             self.comboBox_studies.addItem(sequence_id)
 
             if sequence_dict['reported']:
                 colour = 'green'
-            # elif sequence_dict['reported_old']:
-            #     colour = 'yellow'
             else:
                 colour = 'red'
 
             self.comboBox_studies.setItemData(self.comboBox_studies.count()-1, QtGui.QColor(colour), QtCore.Qt.BackgroundRole)
 
+    def reset_plots(self):
+        for plot_element_name, plot_elements in self.plots.items():
+            for plot_element in plot_elements:
+                del plot_element
+        while self.horizontalLayout_Plots.count() > 0:
+            self.horizontalLayout_Plots.itemAt(0).setParent(None)
+        self.plots = {}
+
     def load_study(self):
-        self.comboBox_sequences.clear()
-        try:
-            sequence_id = self.comboBox_studies.currentText()
-            self.t1map_path = self.sequences[sequence_id]['t1map_path']
-            self.t2map_path = self.sequences[sequence_id]['t2map_path']
-            self.t2img_path = self.sequences[sequence_id]['t2img_path']
-            self.report_path  = self.sequences[sequence_id]['report_path']
-            # self.report_path_old = self.sequences[sequence_id]['report_path_old']
+        # Reset plot area
+        self.reset_plots()
 
-            self.comboBox_sequences.addItem(self.t1map_path)
-            self.comboBox_sequences.addItem(self.t2map_path)
-            self.comboBox_sequences.addItem(self.t2img_path)
-            self.comboBox_sequences.setCurrentIndex(2)  # Select T2img by default
+        # Load report
+        study_id = self.comboBox_studies.currentText()
+        self.report_path = self.studies[study_id]['report_path']
+        self.roi_coords = self.load_coords(self.report_path)
 
-            self.roi_coords = self.load_coords(self.report_path)
-            self.load_sequence()
+        # Refresh buttons
+        self.activelabel_name = LABELS[0]
+        self.draw_buttons()
 
-            self.activelabel_name = LABELS[0]
-            self.draw_buttons()
-        except KeyError as e:  # Selected heading
-            print(e)
+        # Create plots
+        self.create_plots()
 
-    def load_sequence(self):
-        numpy_path = self.comboBox_sequences.currentText()
-        img_array = np.load(numpy_path)
-        if os.path.basename(os.path.dirname(numpy_path)) == 't2_last_image_numpy':
-            print(f"Rescaling")
-            img_array = img_array - np.min(img_array)
-            img_array = img_array / iqr(img_array)
-            img_array = np.clip(img_array, 0, 2)
+    def create_plots(self):
+        img_arrays = []
+        image_items = []
+        plot_widgets = []
 
-        self.img_array = img_array
-        self.draw_image_and_rois()
+        study_id = self.comboBox_studies.currentText()
+        for sequence_type, numpy_path in self.studies[study_id]['sequence_paths'].items():
 
-    # def remap_old_coords(self, old_coords):
-    #     print(old_coords)
-    #     new_coords = defaultdict(list)
-    #     dims = old_coords['dims']
-    #     print(dims)
-    #     for point_name, points in old_coords.items():
-    #         if point_name != 'dims':
-    #             new_coords[point_name] = [[x,dims[0]-y] for x,y in points]
-    #     return new_coords
+            # Create plotWidget
+            plot_widget = PlotWidget(self.centralwidget)
+            plot_widget.setEnabled(True)
+            plot_widget.setObjectName(f"plotWidget_{sequence_type}")
+            plot_widget.setAspectLocked(True)
+
+            # load image
+            img_array = np.load(numpy_path)
+            window_centre = SEQUENCE_WINDOWS[sequence_type][0]['wc']
+            window_width = SEQUENCE_WINDOWS[sequence_type][0]['ww']
+            img_array = window_numpy(img_array,
+                                     window_centre=window_centre,
+                                     window_width=window_width,
+                                     cmap=default_cmap)
+
+            # create imageItem and add to plotWidget
+            image_item = pg.ImageItem(img_array)
+            if self.labelmode == 'add':
+                image_item.mousePressEvent = self.add_node_at_mouse
+            plot_widget.addItem(image_item)
+
+            self.horizontalLayout_Plots.addWidget(plot_widget)
+
+            img_arrays.append(img_array)
+            plot_widgets.append(plot_widget)
+            image_items.append(image_item)
+
+        self.plots['img_arrays'] = img_arrays
+        self.plots['plot_widgets'] = plot_widgets
+        self.plots['image_items'] = image_items
+
+
+    # def load_study(self):
+    #     # load report and coords
+    #     self.report_path = self.studies[study_id]['report_path']
+    #     self.roi_coords = self.load_coords(self.report_path)
+    #
+    #     # Load images into self.image_arrays (list)
+    #     self.load_images()
+    #     self.plot_images()
+    #
+    #     # refresh the interface of buttons
+    #     self.activelabel_name = LABELS[0]
+    #     self.draw_buttons()
+    #
+    # def load_images(self):
+    #     self.img_arrays = []
+    #
+    #     study_id = self.comboBox_studies.currentText()
+    #     for sequence_type, numpy_path in self.studies[study_id]['sequence_paths'].items():
+    #
+    #         img_array = np.load(numpy_path)
+    #         window_centre, window_width = SEQUENCE_WINDOWS[sequence_type][0]['wc'], SEQUENCE_WINDOWS[sequence_type][0]['ww'],
+    #         img_array = window_numpy(img_array,
+    #                                  window_centre=window_centre,
+    #                                  window_width=window_width,
+    #                                  cmap=default_cmap)
+    #
+    #         self.img_arrays.append(img_array)
+    #
+    # def plot_images(self):
+    #     study_id = self.comboBox_studies.currentText()
+    #     for sequence_type, numpy_path in self.studies[study_id]['sequence_paths'].items():
+    #         plot_widget = PlotWidget(self.centralwidget)
+    #         plot_widget.setEnabled(True)
+    #         plot_widget.setObjectName(f"plotWidget_{sequence_type}")
+    #         plot_widget.setAspectLocked(True)
+    #         self.horizontalLayout_Plots.addWidget(plot_widget)
 
     def load_coords(self, report_path=None):
         if report_path is None:
             report_path = self.report_path
         if os.path.exists(report_path):
             return load_pickle(report_path)
-        # elif os.path.exists(self.report_path_old):
-        #     return self.remap_old_coords(load_pickle(self.report_path_old))
         else:
             return defaultdict(list)
 
@@ -147,25 +204,12 @@ class MainWindowUI(Ui_MainWindow):
         shortcut_nextstudy = QShortcut(QKeySequence("Down"), self.pushButton_nextstudy)
         shortcut_nextstudy.activated.connect(lambda: self.action_changestudy(1))
 
-        # Left/right -> Change sequence
-        shortcut_prevseq = QShortcut(QKeySequence("Left"), self.pushButton_prevseq)
-        shortcut_prevseq.activated.connect(lambda: self.action_changeseq(-1))
-        shortcut_nextseq = QShortcut(QKeySequence("Right"), self.pushButton_nextseq)
-        shortcut_nextseq.activated.connect(lambda: self.action_changeseq(1))
-
     @pyqtSlot()
     def action_changestudy(self, changeby):
         current_id = self.comboBox_studies.currentIndex()
         new_id = (current_id + changeby) % self.comboBox_studies.count()
         self.comboBox_studies.setCurrentIndex(new_id)
         self.load_study()
-
-    @pyqtSlot()
-    def action_changeseq(self, changeby):
-        current_id = self.comboBox_sequences.currentIndex()
-        new_id = (current_id + changeby) % self.comboBox_sequences.count()
-        self.comboBox_sequences.setCurrentIndex(new_id)
-        self.load_sequence()
 
     @pyqtSlot()
     def action_changemode(self):
@@ -211,41 +255,41 @@ class MainWindowUI(Ui_MainWindow):
             self.labelbuttons[name].setStyleSheet(style)
 
     def draw_image_and_rois(self, fix_roi=False):
-        # Get current axis range
-        x_range = self.plotWidget.getAxis('bottom').range
-        y_range = self.plotWidget.getAxis('left').range
+        for img_array, image_item, plot_widget, roi_selectors in zip(self.plots['img_arrays'], self.plots['image_items'], self.plots['plot_widgets'], self.plots['roi_selectors']):
+            # Get current axis range
+            x_range = plot_widget.getAxis('bottom').range
+            y_range = plot_widget.getAxis('left').range
 
-        # Remove imageItem
-        if self.imageItem:
-            self.imageItem.mousePressEvent = None
-            self.plotWidget.removeItem(self.imageItem)
-            del self.imageItem
-        # Remove ROIs from plot and delete
-        for roi_name, roi_selector in self.roi_selectors.items():
-            self.plotWidget.removeItem(roi_selector)
-            self.roi_selectors[roi_name] = None
-            del roi_selector
-        self.roi_selectors = {}
+            # Remove imageItem
+            image_item.mousePressEvent = None
+            plot_widget.removeItem(self.imageItem)
+            del image_item
 
-        # Draw image
-        self.imageItem = pg.ImageItem(self.img_array)
-        self.plotWidget.addItem(self.imageItem)
-        if self.labelmode == 'add':
-            self.imageItem.mousePressEvent = self.add_node_at_mouse
+            # Remove ROIs from plot and delete
+            for roi_name, roi_selector in roi_selectors:
+                plot_widget.removeItem(roi_selector)
+                roi_selector[roi_name] = None
+                del roi_selector
+            self.plots['roi_selectors'] = []
 
-        # Draw ROIs
-        for roi_name, coords in self.roi_coords.items():
-            print(roi_name)
-            if roi_name == 'dims':  # Ignore the label containing the image size
-                continue
-            roi_selector = pg.PolyLineROI(coords, movable=False, closed=True, pen=QtGui.QPen(QtGui.QColor(115, 194, 251)))
-            roi_selector.sigRegionChangeFinished.connect(lambda roi: self.update_coords())
-            self.roi_selectors[roi_name] = roi_selector
-            self.plotWidget.addItem(roi_selector)
+            # Draw image
+            image_item = pg.ImageItem(img_array)
+            plot_widget.addItem(image_item)
+            if self.labelmode == 'add':
+                image_item.mousePressEvent = self.add_node_at_mouse
 
-        # Restore range
-        if fix_roi:
-            self.plotWidget.setRange(xRange=x_range, yRange=y_range, padding=0)
+            # Draw ROIs
+            for roi_name, coords in self.roi_coords.items():
+                if roi_name == 'dims':  # Ignore the label containing the image size
+                    continue
+                roi_selector = pg.PolyLineROI(coords, movable=False, closed=True, pen=QtGui.QPen(QtGui.QColor(115, 194, 251)))
+                roi_selector.sigRegionChangeFinished.connect(lambda roi: self.update_coords())
+                self.roi_selectors[roi_name] = roi_selector
+                self.plotWidget.addItem(roi_selector)
+
+            # Restore range
+            if fix_roi:
+                self.plotWidget.setRange(xRange=x_range, yRange=y_range, padding=0)
 
     def update_coords(self):
         if self.labelmode == "add":
@@ -273,7 +317,6 @@ class MainWindowUI(Ui_MainWindow):
         x = round(event.pos().x())
         y = round(event.pos().y())
         self.roi_coords[self.activelabel_name].append([x, y])
-        print(self.roi_coords[self.activelabel_name])
         self.draw_image_and_rois(fix_roi=True)
         # Finally save
         if self.t1map_path:

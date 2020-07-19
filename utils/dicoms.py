@@ -1,5 +1,6 @@
 import os
 import re
+import cv2
 import pickle
 import pydicom
 import numpy as np
@@ -42,8 +43,19 @@ def dicom_to_img(dicom):
     frame = (frame * 255).astype(np.uint8)
     return frame
 
+def window_numpy(nparray, window_centre, window_width, cmap=None, rescale_255=True):
+    v_min = window_centre - (window_width//2)
+    v_max = window_centre + (window_width//2)
+    nparray = np.clip(nparray, v_min, v_max)
+    nparray = nparray - v_min
+    nparray = nparray / window_width
+    if rescale_255:
+        nparray = (nparray * 255).astype(np.uint8)
+    if cmap:
+        nparray = cmap(nparray)
+    return nparray
 
-def get_sequences(path, old_path=None):
+def get_studies(path, old_path=None):
     sequences = {}
     hospital_dirs = [f for f in sorted(glob(os.path.join(path, "*"))) if os.path.isdir(f)]
     for hospital_dir in hospital_dirs:
@@ -65,38 +77,21 @@ def get_sequences(path, old_path=None):
                 slice_id = 0
 
             t2map_path = os.path.join(hospital_dir, "t2_map_numpy", os.path.basename(t1map_path))
-            t2img_path = os.path.join(hospital_dir, "t2_last_image_numpy", os.path.basename(t1map_path))
             report_path = os.path.join(hospital_dir, "seg_labels", os.path.basename(t1map_path)+'.pickle')
             if not os.path.exists(t2map_path):
                 print(f"Unable to find T2 map matching {t1map_path}")
                 continue
-            if not os.path.exists(t2img_path):
-                print(f"Unable to find last T2 image matching {t1map_path}")
-                continue
             reported = True if os.path.exists(report_path) else False
-
-            # if old_path:
-            #     print(f"{file_id} -> {date} -> {date}")
-            #     old_study_folder = os.path.basename(t1map_path).rsplit('_',1)[0] + "_dicom"
-            #     old_report_path = os.path.join(old_path, date, old_study_folder, f"label_{max(slice_id, 1)}.pickle")
-            #     print(f"Looking for {old_report_path} -> {os.path.exists(old_report_path)}")
-            #     if os.path.exists(old_report_path):
-            #         reported_old = True
-            #     else:
-            #         reported_old = False
-            # else:
-            #     reported_old = False
 
             scan_id = f"{scanner_id}_{patient_id}_{study_id}_{meas_id}_{date}-{time}_{run_id} - {slice_id}"
             assert scan_id not in sequences, f"Found clashing ID {scan_id}"
             sequences[scan_id] = {
-                't1map_path': t1map_path,
-                't2map_path': t2map_path,
-                't2img_path': t2img_path,
+                'sequence_paths': {
+                    't1map': t1map_path,
+                    't2map': t2map_path,
+                },
                 'report_path': report_path,
                 'reported': reported,
-                # 'report_path_old': old_report_path,
-                # 'reported_old': reported_old
             }
 
 
