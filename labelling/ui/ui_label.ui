@@ -57,7 +57,7 @@
        </layout>
       </item>
       <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_Seq" stretch="8,1,1">
+       <layout class="QHBoxLayout" name="horizontalLayout_Seq" stretch="8,1,1,0">
         <item>
          <widget class="QComboBox" name="comboBox_sequences">
           <property name="currentText">
@@ -76,6 +76,13 @@
          <widget class="QPushButton" name="pushButton_nextseq">
           <property name="text">
            <string>Next</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="pushButton_changeWindow">
+          <property name="text">
+           <string>Change Windowing</string>
           </property>
          </widget>
         </item>

@@ -1,11 +1,14 @@
 import os
 import re
 import pickle
-import pydicom
 import numpy as np
 from glob import glob
 from tqdm import tqdm
 from collections import defaultdict
+try:
+    import pydicom
+except ImportError:
+    pass
 
 
 def split_dicoms_into_patients_and_sequences(dicompaths):

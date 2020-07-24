@@ -17,8 +17,7 @@ from labelling.ui.layout_label import Ui_MainWindow
 from utils.cmaps import default_cmap
 from utils.dicoms import save_pickle, load_pickle, get_studies, window_numpy
 
-DATADIR = "D:/Data/T1T2"
-OLD_PATH = "D:\\Dropbox\\Work\\Other projects\\T1T2\\data\\dicoms\\by_date_by_study"
+DATADIR = "E:/Data/T1T2"
 
 if QtCore.QT_VERSION >= 0x50501:
     def excepthook(type_, value, traceback_):
@@ -44,6 +43,7 @@ class MainWindowUI(Ui_MainWindow):
         self.imageItem = None
 
         self.activelabel_name = LABELS[0]
+        self.i_window = 0
 
         self.t1map_path = None
         self.t2map_path = None
@@ -81,6 +81,7 @@ class MainWindowUI(Ui_MainWindow):
             self.comboBox_studies.setItemData(self.comboBox_studies.count()-1, QtGui.QColor(colour), QtCore.Qt.BackgroundRole)
 
     def load_study(self):
+        self.i_window = 0
         self.comboBox_sequences.clear()
         try:
             sequence_id = self.comboBox_studies.currentText()
@@ -93,7 +94,7 @@ class MainWindowUI(Ui_MainWindow):
             self.comboBox_sequences.addItem(self.t1map_path)
             self.comboBox_sequences.addItem(self.t2map_path)
             self.comboBox_sequences.addItem(self.t2img_path)
-            self.comboBox_sequences.setCurrentIndex(2)  # Select T2img by default
+            self.comboBox_sequences.setCurrentIndex(1)  # Select T2map by default
 
             self.roi_coords = self.load_coords(self.report_path)
             self.load_sequence()
@@ -109,8 +110,10 @@ class MainWindowUI(Ui_MainWindow):
 
         img_array = np.load(numpy_path)
         try:
-            window_centre = SEQUENCE_WINDOWS[sequence_type][0]['wc']
-            window_width = SEQUENCE_WINDOWS[sequence_type][0]['ww']
+            windows_for_class = SEQUENCE_WINDOWS[sequence_type]
+            window = windows_for_class[self.i_window % len(windows_for_class)]
+            window_centre = window['wc']
+            window_width = window['ww']
             cmap = default_cmap
 
         except KeyError:
@@ -126,7 +129,6 @@ class MainWindowUI(Ui_MainWindow):
 
         self.img_array = img_array
         self.draw_image_and_rois()
-
 
     def load_coords(self, report_path=None):
         if report_path is None:
@@ -161,6 +163,10 @@ class MainWindowUI(Ui_MainWindow):
         shortcut_nextseq = QShortcut(QKeySequence("Right"), self.pushButton_nextseq)
         shortcut_nextseq.activated.connect(lambda: self.action_changeseq(1))
 
+        # x -> change window
+        shortcut_changewindow = QShortcut(QKeySequence("X"), self.pushButton_changeWindow)
+        shortcut_changewindow.activated.connect(lambda: self.change_window())
+
     @pyqtSlot()
     def action_changestudy(self, changeby):
         current_id = self.comboBox_studies.currentIndex()
@@ -194,6 +200,12 @@ class MainWindowUI(Ui_MainWindow):
     def action_labelbutton(self, labelname):
         self.activelabel_name = labelname
         self.draw_buttons()
+
+    @pyqtSlot()
+    def change_window(self):
+        print("changing window")
+        self.i_window += 1
+        self.load_sequence()
 
     def draw_buttons(self):
         # Edit button
@@ -243,7 +255,6 @@ class MainWindowUI(Ui_MainWindow):
 
         # Draw ROIs
         for roi_name, coords in self.roi_coords.items():
-            print(roi_name)
             if roi_name == 'dims':  # Ignore the label containing the image size
                 continue
             roi_selector = pg.PolyLineROI(coords, movable=False, closed=True, pen=QtGui.QPen(QtGui.QColor(115, 194, 251)))
