@@ -8,7 +8,7 @@ import albumentations as A
 from glob import glob
 from tqdm import tqdm
 
-from utils.dicoms import load_pickle, dicom_to_img
+from utils.labeling import load_pickle, dicom_to_img
 from utils.dataset import T1T2Dataset
 from utils.mask import shape_to_mask
 from utils.cfg import load_config

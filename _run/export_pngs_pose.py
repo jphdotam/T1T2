@@ -12,7 +12,7 @@ from scipy import interpolate
 
 import matplotlib.pyplot as plt
 
-from utils.dicoms import load_pickle, dicom_to_img
+from utils.labeling import load_pickle, dicom_to_img
 from utils.dataset import T1T2Dataset
 from utils.mask import shape_to_mask
 from utils.cfg import load_config
