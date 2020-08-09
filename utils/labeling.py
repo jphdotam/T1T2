@@ -142,6 +142,7 @@ def get_studies_peter(path, check_hui_label):
         }
     return sequences
 
+
 def get_hui_report_path(peter_path, hui_data_dir):
     seq_name, scanner_id, study_id, patient_id, meas_id, date, time = re.findall(REGEX_PETER, os.path.basename(os.path.dirname(peter_path)))[0]  # Returns a list of len 1, with a tuple of 7
     run_id = os.path.splitext(os.path.basename(peter_path))[0].rsplit('_', 1)[1]
@@ -153,6 +154,7 @@ def get_hui_report_path(peter_path, hui_data_dir):
     else:
         print(f"Found > 1 matching report for {peter_path}: {matching_reports}")
         return False
+
 
 def convert_hui_coords_to_peter_coords(hui_coords):
     peter_coords = defaultdict(list)

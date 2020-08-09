@@ -19,7 +19,8 @@ from utils.labeling import save_pickle, load_pickle, window_numpy, PETER_SEQUENC
 from utils.labeling import get_studies_peter as get_studies
 
 DATADIR_PETER = "E:/Data/T1T2_peter"
-DATADIR_HUI = "E:/Data/T1T2_hui"  # False if don't want to check for Hui labels
+DATADIR_HUI = "E:/Data/T1T2_hui"
+#DATADIR_HUI = False  # "E:/Data/T1T2_hui"  # False if don't want to check for Hui labels
 
 if QtCore.QT_VERSION >= 0x50501:
     def excepthook(type_, value, traceback_):
@@ -63,19 +64,23 @@ class MainWindowUI(Ui_MainWindow):
     def refresh_studyselector(self):
         self.comboBox_studies.clear()
         self.comboBox_studies.addItem("Please select a study")
+        n_reported, n_reported_hui = 0, 0
         for sequence_id, sequence_dict in self.sequences.items():
             self.comboBox_studies.addItem(sequence_id)
 
             if sequence_dict['reported'] == 'peter':
                 colour = 'green'
+                n_reported += 1
             elif sequence_dict['reported'] == 'hui':
                 colour = 'yellow'
+                n_reported_hui += 1
             elif sequence_dict['reported'] == 'no':
                 colour = 'red'
             else:
                 raise ValueError()
 
             self.comboBox_studies.setItemData(self.comboBox_studies.count()-1, QtGui.QColor(colour), QtCore.Qt.BackgroundRole)
+        print(f"{n_reported} of {len(self.sequences)} reported {'(' + str(n_reported_hui) + ' hui reports)' if n_reported_hui else ''}")
 
     def load_study(self):
         self.i_window = 0
@@ -100,6 +105,7 @@ class MainWindowUI(Ui_MainWindow):
 
     def load_sequence(self):
         i_seq, seq_name, numpy_path = self.comboBox_sequences.currentText().split(' - ', 2)
+        print(numpy_path)
         i_seq = int(i_seq)
 
         img_array = np.load(numpy_path)[:,:,i_seq]

@@ -4,18 +4,7 @@ import pydicom
 import numpy as np
 import matplotlib.pyplot as plt
 
-
-def dicom_to_img(dicom):
-    if type(dicom) == str:
-        dcm = pydicom.dcmread(dicom)
-    else:
-        dcm = dicom
-    window_min = max(0, dcm.WindowCenter - dcm.WindowWidth)
-    frame = dcm.pixel_array - window_min
-    frame = frame / dcm.WindowWidth
-    frame = np.clip(frame, 0, 1)
-    frame = (frame * 255).astype(np.uint8)
-    return frame
+from utils.labeling import dicom_to_img
 
 
 def pad_if_needed(img, min_height, min_width):
