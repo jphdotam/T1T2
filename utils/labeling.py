@@ -14,12 +14,6 @@ except ImportError:
 REGEX_HUI = "(.*)_([0-9]{3,})_([0-9]{5,})_([0-9]{5,})_([0-9]{2,})_([0-9]{8})-([0-9]{6,})_([0-9]{1,})_?(.*)?"
 REGEX_PETER = "(.*)_([0-9]{4,})_([0-9]{4,})_([0-9]{4,})_([0-9]{1,})_([0-9]{8})-([0-9]{6})"
 
-PETER_SEQUENCE_WINDOWS = {"T1w": [{'wc': 1300, 'ww': 1300}, {'wc': 500, 'ww': 1000}],
-                          "T2w": [{'wc': 60, 'ww': 120}],
-                          "PDw": None,
-                          "T1": [{'wc': 1300, 'ww': 1300}, {'wc': 500, 'ww': 1000}],
-                          "T2": [{'wc': 60, 'ww': 120}]}
-
 
 def load_pickle(path):
     with open(path, 'rb') as f:
@@ -42,19 +36,6 @@ def dicom_to_img(dicom):
     frame = np.clip(frame, 0, 1)
     frame = (frame * 255).astype(np.uint8)
     return frame
-
-
-def window_numpy(nparray, window_centre, window_width, cmap=None, rescale_255=True):
-    v_min = window_centre - (window_width // 2)
-    v_max = window_centre + (window_width // 2)
-    nparray = np.clip(nparray, v_min, v_max)
-    nparray = nparray - v_min
-    nparray = nparray / window_width
-    if rescale_255:
-        nparray = (nparray * 255).astype(np.uint8)
-    if cmap:
-        nparray = cmap(nparray)
-    return nparray
 
 
 def get_studies_hui(path):

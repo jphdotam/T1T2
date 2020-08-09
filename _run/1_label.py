@@ -15,12 +15,12 @@ from PyQt5.QtWidgets import QWidget, QShortcut
 from labelling.ui.css import css
 from labelling.ui.layout_label import Ui_MainWindow
 from utils.cmaps import default_cmap
-from utils.labeling import save_pickle, load_pickle, window_numpy, PETER_SEQUENCE_WINDOWS, get_hui_report_path, convert_hui_coords_to_peter_coords
+from utils.labeling import save_pickle, load_pickle, get_hui_report_path, convert_hui_coords_to_peter_coords
+from utils.windows import SEQUENCE_WINDOWS, window_numpy
 from utils.labeling import get_studies_peter as get_studies
 
 DATADIR_PETER = "E:/Data/T1T2_peter"
-DATADIR_HUI = "E:/Data/T1T2_hui"
-#DATADIR_HUI = False  # "E:/Data/T1T2_hui"  # False if don't want to check for Hui labels
+DATADIR_HUI = "E:/Data/T1T2_hui"  # False if don't want to check for Hui labels
 
 if QtCore.QT_VERSION >= 0x50501:
     def excepthook(type_, value, traceback_):
@@ -90,7 +90,7 @@ class MainWindowUI(Ui_MainWindow):
             self.numpy_path = self.sequences[sequence_id]['numpy_path']
             self.report_path = self.sequences[sequence_id]['report_path']
 
-            for i_seq, seq in enumerate(PETER_SEQUENCE_WINDOWS.keys()):
+            for i_seq, seq in enumerate(SEQUENCE_WINDOWS.keys()):
                 self.comboBox_sequences.addItem(f"{i_seq} - {seq} - {self.numpy_path}")
             self.comboBox_sequences.setCurrentIndex(4)  # Select T2w by default
 
@@ -113,7 +113,7 @@ class MainWindowUI(Ui_MainWindow):
         img_array = np.flip(img_array, axis=1)
 
         try:
-            windows_for_class = PETER_SEQUENCE_WINDOWS[seq_name]
+            windows_for_class = SEQUENCE_WINDOWS[seq_name]
             window = windows_for_class[self.i_window % len(windows_for_class)]
             window_centre = window['wc']
             window_width = window['ww']

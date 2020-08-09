@@ -1,0 +1,74 @@
+# new system
+
+pose_or_seg: pose
+
+resume:
+  path: false
+  epoch: false
+  reset_optimizer: false
+
+export:
+  npydir: E:/Data/T1T2_peter
+  sequences:
+    t1_pre:
+      channel: 3
+      wc: 1300
+      ww: 1300
+    t1_post:
+      channel: 3
+      wc: 500
+      ww: 1000
+    t2:
+      channel: 4
+      wc: 60
+      ww: 120
+  label_classes: [epi, endo]
+  gaussian_sigma: 2
+
+data:
+  pngdir: ../data/pngs_pose
+
+training:
+  model: 'higher_hrnet'
+  n_epochs: 160
+  # gpu
+  device: cuda
+  dataparallel: false
+  mixed_precision: false
+  # data loading
+  batch_size: 12
+  n_folds: 5
+  num_workers: 4
+  # loss functions
+  train_criterion: mse
+  test_criterion: mse
+  # optimizer
+  optimizer: adamw
+  lr: 0.0001
+  weight_decay: 0.01
+  # scheduling
+  sched: one_cycle
+
+output:
+  model_dir: ../output/models
+  vis_dir: ../output/vis
+  log_dir: ../output/logs
+  use_tensorboard: true
+  log_freq: 5  # In iterations
+  save: 'best'  # 'best', 'improvements', 'all'
+  vis_every: 1
+  vis_n: 10
+  generate_polygons: true  # if false, rasterio & shapely not required
+
+transforms:
+  train:
+    hflip: 0.5
+    vflip: 0.5
+    randomresizedcrop: [448, 448]
+    rotate: 0.5
+    shiftscalerotate: 0.5
+    elastictransform: 1
+    griddropout: 0.25
+  test:
+    centrecrop: [256, 256]
+    final_resize: [512, 512]
