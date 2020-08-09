@@ -8,7 +8,7 @@ from utils.cfg import load_config
 from utils.export import export_label
 from utils.windows import SEQUENCE_WINDOWS
 
-CONFIG = "../experiments/024.yaml"
+CONFIG = "../experiments/025.yaml"
 EXCLUDED_FILES_PATH = "../data/blacklist.txt"
 
 # Load config

@@ -6,21 +6,17 @@ from utils.dataset import T1T2Dataset
 from utils.models import load_seg_model
 from utils.optimizers import load_optimizer
 from utils.transforms import get_segmentation_transforms
-from utils.training import load_criterion, cycle_seg, save_model, cycle_pose
+from utils.training import load_criterion, save_model, cycle_pose
 from utils.tensorboard import get_summary_writer
-from utils.vis import vis_seg, vis_pose
+from utils.vis import vis_pose
 
+CONFIG = "../experiments/024.yaml"
 
-CONFIG = "../experiments/023.yaml"
-
-if __name__ ==  "__main__":
+if __name__ == "__main__":
     fold = 1
 
     # Load config
     cfg, vis_dir, model_dir = load_config(CONFIG)
-    pose_or_seg = cfg['pose_or_seg']
-    cycle = cycle_pose if pose_or_seg=='pose' else cycle_seg
-    vis = vis_pose if pose_or_seg=='pose' else vis_seg
 
     # Data
     train_transforms, test_transforms = get_segmentation_transforms(cfg)
@@ -45,8 +41,8 @@ if __name__ ==  "__main__":
     for epoch in range(starting_epoch, n_epochs + 1):
         print(f"\nEpoch {epoch} of {n_epochs}")
 
-        train_loss = cycle('train', model, dl_train, epoch, train_criterion, optimizer, cfg, scheduler, writer=writer)
-        test_loss = cycle('test', model, dl_test, epoch, test_criterion, optimizer, cfg, writer=writer)
+        train_loss = cycle_pose('train', model, dl_train, epoch, train_criterion, optimizer, cfg, scheduler, writer=writer)
+        test_loss = cycle_pose('test', model, dl_test, epoch, test_criterion, optimizer, cfg, writer=writer)
 
         # save model if required('all', 'best', or 'improvement')
         state = {'epoch': epoch + 1,
@@ -57,7 +53,7 @@ if __name__ ==  "__main__":
         best_loss, last_save_path = save_model(state, save_path, test_loss, best_loss, cfg, last_save_path)
 
         # vis
-        vis(dl_test, model, epoch, vis_dir, cfg, show=False, writer=writer, save=True)
+        vis_pose(dl_test, model, epoch, vis_dir, cfg, show=False, writer=writer, save=True)
 
     save_path = os.path.join(model_dir, f"{fold}_final_{n_epochs}_{test_loss:.07f}.pt")
     best_loss, last_save_path = save_model(state, save_path, test_loss, best_loss, cfg, last_save_path, final=True)

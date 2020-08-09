@@ -20,10 +20,10 @@ export:
       wc: 60
       ww: 120
   label_classes: [epi, endo]
-  gaussian_sigma: 2
+  gaussian_sigma: 1
 
 data:
-  pngdir: ../data/pngs_pose
+  pngdir: ../data/pngs_pose_1
 
 training:
   model: 'higher_hrnet'
