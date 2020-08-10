@@ -1,8 +1,14 @@
 import cv2
 import albumentations as A
 
-def get_segmentation_transforms(cfg, normalise=True):
-    mean, std = cfg['data']['mean'], cfg['data']['std']
+
+def div255(image, **kwargs):
+    image_copy = image.copy()
+    return image_copy / 255
+
+
+def get_segmentation_transforms(cfg, normalise=False):
+    mean, std = cfg['data'].get('mean', None), cfg['data'].get('std', None)
 
     def get_transforms(trans_cfg, normalise):
         transforms = []
@@ -55,17 +61,10 @@ def get_segmentation_transforms(cfg, normalise=True):
         if normalise:
             transforms.append(A.Normalize(mean=mean, std=std))
         else:
-            print(f"WARNING: NOT NORMALISING! Assume you are checking normalisation parameters?")
+            transforms.append(A.Lambda(image=div255))
         return A.Compose(transforms)
 
-    if cfg['pose_or_seg'] == 'seg':
-        res = cfg['res']
-        train_transforms = get_transforms(cfg['transforms'][res]['train'], normalise=normalise)
-        test_transforms = get_transforms(cfg['transforms'][res]['test'], normalise=normalise)
-    elif cfg['pose_or_seg'] == 'pose':
-        train_transforms = get_transforms(cfg['transforms']['train'], normalise=normalise)
-        test_transforms = get_transforms(cfg['transforms']['test'], normalise=normalise)
-    else:
-        raise ValueError()
+    train_transforms = get_transforms(cfg['transforms']['train'], normalise=normalise)
+    test_transforms = get_transforms(cfg['transforms']['test'], normalise=normalise)
 
     return train_transforms, test_transforms

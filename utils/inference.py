@@ -1,21 +1,9 @@
 import math
 import torch
-import pydicom
 import numpy as np
 import matplotlib.pyplot as plt
 
-
-def dicom_to_img(dicom):
-    if type(dicom) == str:
-        dcm = pydicom.dcmread(dicom)
-    else:
-        dcm = dicom
-    window_min = max(0, dcm.WindowCenter - dcm.WindowWidth)
-    frame = dcm.pixel_array - window_min
-    frame = frame / dcm.WindowWidth
-    frame = np.clip(frame, 0, 1)
-    frame = (frame * 255).astype(np.uint8)
-    return frame
+from utils.labeling import dicom_to_img
 
 
 def pad_if_needed(img, min_height, min_width):
@@ -56,7 +44,7 @@ def center_crop(img, crop_height, crop_width, centre=None):
 
 def pose_mask_to_coords(prediction_mask,  # a single channel, H * W
                         default_relative_step_size=1/50,
-                        minimum_probability_to_trace=0.001,
+                        minimum_probability_to_trace=0.0001,
                         inertia=0.5,
                         minimum_bend_cosine=-0.2,
                         far_enough_fraction=0.5):  # How far away each ridge point step must be from the closest other points (to prevent bendback). Don't drop below 0.5

@@ -15,9 +15,12 @@ from PyQt5.QtWidgets import QWidget, QShortcut
 from labelling.ui.css import css
 from labelling.ui.layout_label import Ui_MainWindow
 from utils.cmaps import default_cmap
-from utils.dicoms import save_pickle, load_pickle, get_studies, window_numpy
+from utils.labeling import save_pickle, load_pickle, get_hui_report_path, convert_hui_coords_to_peter_coords
+from utils.windows import SEQUENCE_WINDOWS, window_numpy
+from utils.labeling import get_studies_peter as get_studies
 
-DATADIR = "E:/Data/T1T2"
+DATADIR_PETER = "E:/Data/T1T2_peter"
+DATADIR_HUI = "E:/Data/T1T2_hui"  # False if don't want to check for Hui labels
 
 if QtCore.QT_VERSION >= 0x50501:
     def excepthook(type_, value, traceback_):
@@ -27,13 +30,8 @@ sys.excepthook = excepthook
 
 LABELS = ('endo', 'epi', 'myo')
 
-SEQUENCE_WINDOWS = {
-    't1_map_numpy': [{'wc':1300, 'ww':1300}, {'wc':500, 'ww':1000}],
-    't2_map_numpy': [{'wc':60, 'ww':120}],
-}
-
 class MainWindowUI(Ui_MainWindow):
-    def __init__(self, mainwindow, data_root_dir=DATADIR):
+    def __init__(self, mainwindow, data_root_dir=DATADIR_PETER):
 
         super(MainWindowUI, self).__init__()
         self.data_root_dir = data_root_dir
@@ -45,9 +43,7 @@ class MainWindowUI(Ui_MainWindow):
         self.activelabel_name = LABELS[0]
         self.i_window = 0
 
-        self.t1map_path = None
-        self.t2map_path = None
-        self.t2img_path = None
+        self.numpy_path = None
 
         self.img_array = None
         self.roi_coords = defaultdict(list)
@@ -58,7 +54,7 @@ class MainWindowUI(Ui_MainWindow):
                              'myo': self.pushButton_myo}
         self.labelmode = 'add'
 
-        self.sequences = get_studies(self.data_root_dir)
+        self.sequences = get_studies(self.data_root_dir, check_hui_label=DATADIR_HUI)
         self.refresh_studyselector()
         self.comboBox_studies.activated.connect(self.load_study)
         self.comboBox_sequences.activated.connect(self.load_sequence)
@@ -68,55 +64,62 @@ class MainWindowUI(Ui_MainWindow):
     def refresh_studyselector(self):
         self.comboBox_studies.clear()
         self.comboBox_studies.addItem("Please select a study")
+        n_reported, n_reported_hui = 0, 0
         for sequence_id, sequence_dict in self.sequences.items():
             self.comboBox_studies.addItem(sequence_id)
 
-            if sequence_dict['reported']:
+            if sequence_dict['reported'] == 'peter':
                 colour = 'green'
-            # elif sequence_dict['reported_old']:
-            #     colour = 'yellow'
-            else:
+                n_reported += 1
+            elif sequence_dict['reported'] == 'hui':
+                colour = 'yellow'
+                n_reported_hui += 1
+            elif sequence_dict['reported'] == 'no':
                 colour = 'red'
+            else:
+                raise ValueError()
 
             self.comboBox_studies.setItemData(self.comboBox_studies.count()-1, QtGui.QColor(colour), QtCore.Qt.BackgroundRole)
+        print(f"{n_reported} of {len(self.sequences)} reported {'(' + str(n_reported_hui) + ' hui reports)' if n_reported_hui else ''}")
 
     def load_study(self):
         self.i_window = 0
         self.comboBox_sequences.clear()
         try:
             sequence_id = self.comboBox_studies.currentText()
-            self.t1map_path = self.sequences[sequence_id]['t1map_path']
-            self.t2map_path = self.sequences[sequence_id]['t2map_path']
-            self.t2img_path = self.sequences[sequence_id]['t2img_path']
-            self.report_path  = self.sequences[sequence_id]['report_path']
-            # self.report_path_old = self.sequences[sequence_id]['report_path_old']
+            self.numpy_path = self.sequences[sequence_id]['numpy_path']
+            self.report_path = self.sequences[sequence_id]['report_path']
 
-            self.comboBox_sequences.addItem(self.t1map_path)
-            self.comboBox_sequences.addItem(self.t2map_path)
-            self.comboBox_sequences.addItem(self.t2img_path)
-            self.comboBox_sequences.setCurrentIndex(1)  # Select T2map by default
+            for i_seq, seq in enumerate(SEQUENCE_WINDOWS.keys()):
+                self.comboBox_sequences.addItem(f"{i_seq} - {seq} - {self.numpy_path}")
+            self.comboBox_sequences.setCurrentIndex(4)  # Select T2w by default
 
-            self.roi_coords = self.load_coords(self.report_path)
+            hui_reported = self.sequences[sequence_id]['reported']=='hui'
+            self.roi_coords = self.load_coords(self.report_path, hui_reported=hui_reported)
             self.load_sequence()
 
             self.activelabel_name = LABELS[0]
             self.draw_buttons()
         except KeyError as e:  # Selected heading
-            print(e)
+            print(f"exception: {e}")
 
     def load_sequence(self):
-        numpy_path = self.comboBox_sequences.currentText()
-        sequence_type = os.path.basename(os.path.dirname(numpy_path))
+        i_seq, seq_name, numpy_path = self.comboBox_sequences.currentText().split(' - ', 2)
+        print(numpy_path)
+        i_seq = int(i_seq)
 
-        img_array = np.load(numpy_path)
+        img_array = np.load(numpy_path)[:,:,i_seq]
+        img_array = img_array.T
+        img_array = np.flip(img_array, axis=1)
+
         try:
-            windows_for_class = SEQUENCE_WINDOWS[sequence_type]
+            windows_for_class = SEQUENCE_WINDOWS[seq_name]
             window = windows_for_class[self.i_window % len(windows_for_class)]
             window_centre = window['wc']
             window_width = window['ww']
             cmap = default_cmap
 
-        except KeyError:
+        except (KeyError, TypeError):
             # No wc/ww for this, so use median for wc and 2* IQR for WW
             window_centre = np.median(img_array)
             window_width = iqr(img_array) * 2
@@ -130,12 +133,16 @@ class MainWindowUI(Ui_MainWindow):
         self.img_array = img_array
         self.draw_image_and_rois()
 
-    def load_coords(self, report_path=None):
+    def load_coords(self, report_path=None, hui_reported=False):
         if report_path is None:
             report_path = self.report_path
         if os.path.exists(report_path):
             return load_pickle(report_path)
         else:
+            if hui_reported:
+                hui_report_path = get_hui_report_path(self.numpy_path, DATADIR_HUI)
+                if hui_report_path:
+                    return convert_hui_coords_to_peter_coords(load_pickle(hui_report_path))
             return defaultdict(list)
 
     def create_shortcuts(self):
@@ -274,9 +281,9 @@ class MainWindowUI(Ui_MainWindow):
             self.roi_coords[roi_name] = []
             for segment in roi.segments:
                 point = segment.listPoints()[0]
-                self.roi_coords[roi_name].append([point.x(), point.y()])
+                self.roi_coords[roi_name].append([point.img_cl(), point.y()])
         # Finally save
-        if self.t1map_path:
+        if self.numpy_path:
             self.save_coords()
 
     def save_coords(self, report_path=None):
@@ -289,13 +296,13 @@ class MainWindowUI(Ui_MainWindow):
 
     def add_node_at_mouse(self, event):
         self.labelbuttons[self.activelabel_name].setStyleSheet(css['labelbutton_active_green'])
-        x = round(event.pos().x())
+        x = round(event.pos().img_cl())
         y = round(event.pos().y())
         self.roi_coords[self.activelabel_name].append([x, y])
         print(self.roi_coords[self.activelabel_name])
         self.draw_image_and_rois(fix_roi=True)
         # Finally save
-        if self.t1map_path:
+        if self.numpy_path:
             self.save_coords()
 
 
