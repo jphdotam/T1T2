@@ -10,18 +10,17 @@ from utils.training import load_criterion, save_model, cycle_pose
 from utils.tensorboard import get_summary_writer
 from utils.vis import vis_pose
 
-CONFIG = "../experiments/024.yaml"
+CONFIG = "../experiments/025.yaml"
 
 if __name__ == "__main__":
-    fold = 1
 
     # Load config
     cfg, vis_dir, model_dir = load_config(CONFIG)
 
     # Data
     train_transforms, test_transforms = get_segmentation_transforms(cfg)
-    ds_train = T1T2Dataset(cfg, 'train', train_transforms, fold)
-    ds_test = T1T2Dataset(cfg, 'test', test_transforms, fold)
+    ds_train = T1T2Dataset(cfg, 'train', train_transforms)
+    ds_test = T1T2Dataset(cfg, 'test', test_transforms)
     dl_train = DataLoader(ds_train, cfg['training']['batch_size'], shuffle=True,
                           num_workers=cfg['training']['num_workers'], pin_memory=True)
     dl_test = DataLoader(ds_test, cfg['training']['batch_size'], shuffle=False,

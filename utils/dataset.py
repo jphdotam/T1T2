@@ -13,7 +13,7 @@ from torch.utils.data import Dataset
 
 
 class T1T2Dataset(Dataset):
-    def __init__(self, cfg, train_or_test, transforms, fold):
+    def __init__(self, cfg, train_or_test, transforms, fold=1):
         self.cfg = cfg
         self.train_or_test = train_or_test
         self.transforms = transforms
@@ -47,7 +47,7 @@ class T1T2Dataset(Dataset):
     def load_sequences(self):
         """Get a list of tuples of (imgpath, labpath)"""
         sequences = []
-        for date in self.dates:
+        for date in sorted(self.dates):
             imgpaths = sorted(glob(os.path.join(self.pngdir, f"{date}__*__img.png")))  # Get all images
             for imgpath in imgpaths:  # Check matching mask
                 labpath = imgpath.replace('__img', '__lab')
@@ -91,29 +91,8 @@ class T1T2Dataset(Dataset):
 
         return x, y
 
-    def get_normalisation_params_for_images(self, max=2000):
-        mean, std = 0, 0
-        print(f"Getting normalisation parameters...")
-        print(f"REMEMBER NOT TO HAVE NORMALISATION IN TRANSFORMS (unless you wish to check norm is correct)")
-        sequences = self.sequences[:max]
-        random.shuffle(sequences)
-        for seqs in tqdm(sequences):
-            img = skimage.io.imread(seqs[0])
-
-            mask = self.transforms(image=img)['image']
-
-            mask = torch.from_numpy(mask).float().permute(2, 0, 1)[1:]
-            mask = mask.view(mask.size(0), -1)  # 3 * all_pixels
-            mean += mask.mean(1)
-            std += mask.std(1)
-        return mean / len(sequences), std / len(sequences)
-
-    def get_dicom_paths_from_seqences(self, sequence_tuple):
-        t1pngpath, t2pngpath, masknpzpath = sequence_tuple
-        dicom_root = self.cfg['data']['dicomdir']
-        t1pngname = os.path.splitext(os.path.basename(t1pngpath))[0]
-        date, study = os.path.basename(t1pngname).split('_', 2)[1:]
-        t1paths = glob(os.path.join(dicom_root, date, study, "T1*dcm"))
-        t2paths = glob(os.path.join(dicom_root, date, study, "T2*dcm"))
-        assert len(t1paths) == 1 and len(t2paths) == 1
-        return t1paths[0], t2paths[0]
+    def get_numpy_paths_for_sequence(self, sequence_tuple):
+        npy_root = self.cfg['export']['npydir']
+        imgpath, labpath = sequence_tuple
+        datefolder, studyfolder, npyname, _ext = os.path.basename(imgpath).split('__')
+        return os.path.join(npy_root, datefolder, studyfolder, npyname + '.npy')

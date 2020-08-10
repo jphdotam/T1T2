@@ -59,7 +59,7 @@ def export_label(labelpath, sequences, label_classes, output_dir, gaussian_sigma
     seq_path = os.path.splitext(labelpath)[0]
     date_dir = os.path.basename(os.path.dirname(os.path.dirname(labelpath)))  # 20200313
     study_dir = os.path.basename(os.path.dirname(labelpath))  # T1T2_42363_588453382_588453387_1639_20200313-105857
-    seq_name = os.path.splitext(os.path.basename(seq_path))  # T1_T2_PD_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.npy
+    npy_name = os.path.splitext(os.path.basename(seq_path))[0]  # T1_T2_PD_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.npy
 
     npy = np.load(seq_path)
     src_height, src_width, src_channels = npy.shape
@@ -127,9 +127,9 @@ def export_label(labelpath, sequences, label_classes, output_dir, gaussian_sigma
 
     # SAVE
     # Dicom
-    outpath_img = f"{date_dir}__{study_dir}__{seq_name}__img.png"
+    outpath_img = f"{date_dir}__{study_dir}__{npy_name}__img.png"
     skimage.io.imsave(os.path.join(output_dir, outpath_img), seq_out, check_contrast=False)
 
     # Label
-    outpath_lab = f"{date_dir}__{study_dir}__{seq_name}__lab.png"
+    outpath_lab = f"{date_dir}__{study_dir}__{npy_name}__lab.png"
     skimage.io.imsave(os.path.join(output_dir, outpath_lab), lab_out, check_contrast=False)

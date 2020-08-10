@@ -23,7 +23,7 @@ export:
   gaussian_sigma: 2
 
 data:
-  pngdir: ../data/pngs_pose
+  pngdir: ../data/pngs_pose_2
 
 training:
   model: 'higher_hrnet'

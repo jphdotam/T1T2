@@ -281,7 +281,7 @@ class MainWindowUI(Ui_MainWindow):
             self.roi_coords[roi_name] = []
             for segment in roi.segments:
                 point = segment.listPoints()[0]
-                self.roi_coords[roi_name].append([point.x(), point.y()])
+                self.roi_coords[roi_name].append([point.img_cl(), point.y()])
         # Finally save
         if self.numpy_path:
             self.save_coords()
@@ -296,7 +296,7 @@ class MainWindowUI(Ui_MainWindow):
 
     def add_node_at_mouse(self, event):
         self.labelbuttons[self.activelabel_name].setStyleSheet(css['labelbutton_active_green'])
-        x = round(event.pos().x())
+        x = round(event.pos().img_cl())
         y = round(event.pos().y())
         self.roi_coords[self.activelabel_name].append([x, y])
         print(self.roi_coords[self.activelabel_name])

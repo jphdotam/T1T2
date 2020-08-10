@@ -130,5 +130,6 @@ data/
 output/logs
 output/models
 output/vis
+output/predictions*
 output/predictions
 _run/_old
