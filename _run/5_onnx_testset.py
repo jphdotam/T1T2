@@ -14,12 +14,15 @@ from utils.inference import center_crop, dicom_to_img, pad_if_needed, pose_mask_
 from utils.cmaps import default_cmap
 
 # Settings
-PRED_DIR = "../output/predictions_2/"
-CONFIG = "../experiments/024.yaml"
-MODELPATH = "../output/models/024/1_95_0.0010754.pt.onnx"
-SEQUENCE_WINDOWS = {"t1_pre": {'channel': 3, 'wc': 1300, 'ww': 1300},
-                    "t1_post": {'channel': 3, 'wc': 500, 'ww': 1000},
-                    "t2": {'channel': 4, 'wc': 60, 'ww': 120}}
+PRED_DIR = "../output/predictions_26/"
+CONFIG = "../experiments/026.yaml"
+MODELPATH = "../output/models/026/110_0.0010794.pt.onnx"
+SEQUENCE_WINDOWS = {"t1w": {'channel': 0, 'method':'divmax'},
+                    "t2w": {'channel': 1, 'method':'divmax'},
+                    "pd": {'channel': 2, 'method':'divmax'},
+                    "t1_pre": {'channel': 3, 'method': 'window', 'wc': 1300, 'ww': 1300},
+                    "t1_post": {'channel': 3, 'method': 'window', 'wc': 500, 'ww': 1000},
+                    "t2": {'channel': 4, 'method': 'window', 'wc': 60, 'ww': 120}}
 FOV_CROP = 256
 DOUBLE_INPUT_RES = True  # HRNet downsamples 2x, so double upsample ensures predictions are 256 * 256 res
 
@@ -48,11 +51,17 @@ for i_seq, seq in tqdm(enumerate(ds_test.sequences), total=len(ds_test.sequences
     src_height, src_width, src_channels = npy.shape
 
     # Load numpy array and apply windowing
-    img_cl = np.zeros((src_height, src_width, len(SEQUENCE_WINDOWS)))
+    img_cl = np.zeros((src_height, src_width, len(SEQUENCE_WINDOWS)), dtype=np.uint8)
 
     for i_seqtype, (seqtype_name, seqtype_dict) in enumerate(SEQUENCE_WINDOWS.items()):
-        channel, wc, ww = seqtype_dict['channel'], seqtype_dict['wc'], seqtype_dict['ww']
-        img_cl[:, :, i_seqtype] = window_numpy(npy[:, :, channel], wc, ww, rescale_255=True)
+        channel = seqtype_dict['channel']
+        if seqtype_dict['method'] == 'window':
+            wc, ww = seqtype_dict['wc'], seqtype_dict['ww']
+            img_cl[:, :, i_seqtype] = window_numpy(npy[:, :, channel], wc, ww, rescale_255=True)
+        elif seqtype_dict['method'] == 'divmax':
+            ch = npy[:, :, channel] - npy[:, :, channel].min()
+            ch = ch / ch.max()
+            img_cl[:, :, i_seqtype] = (ch*255).astype(np.uint8)
 
     # Crop and double res if needed (for HRNet which downsamples masks)
     img_crop_cl, topleft_crop = center_crop(pad_if_needed(img_cl, FOV_CROP, FOV_CROP), FOV_CROP, FOV_CROP)
@@ -60,8 +69,6 @@ for i_seq, seq in tqdm(enumerate(ds_test.sequences), total=len(ds_test.sequences
         img_crop_cf = skimage.transform.rescale(img_crop_cl, 2, order=3, multichannel=True).transpose((2, 0, 1))
     else:
         img_crop_cf = img_cl.transpose((2, 0, 1))
-
-    img_crop_cf = img_crop_cf / 255
 
     # Predict
     # Load the ONNX low-res model
@@ -74,10 +81,25 @@ for i_seq, seq in tqdm(enumerate(ds_test.sequences), total=len(ds_test.sequences
     # !!!HUI CAN STOP HERE!!! - Below is just for visualisation
 
     # Plot
-    fig, axes = plt.subplots(2, 3, figsize=(18, 12), gridspec_kw={'wspace': 0, 'hspace': 0})
+    fig, axes = plt.subplots(2, 6, figsize=(32, 12), gridspec_kw={'wspace': 0, 'hspace': 0})
+
+    # pred coords
+    xs_ys_by_channel = []
+    for i_channel in range(pred_batch.shape[1]):  # dim 0 is batch, then prediction channels
+        # pred mask
+        pred = pred_batch[0, i_channel]
+        if RAISE_TO_POWER > 1:
+            pred = np.power(pred, RAISE_TO_POWER)
+        if NORMALISE_PREDS:
+            pred = pred - pred.min()
+            pred = pred / (pred.max() + 1e-8)
+
+        pred_coords = pose_mask_to_coords(prediction_mask=pred_batch[0, i_channel])
+        pred_coords = [[coord['x'], coord['y']] for coord in pred_coords]
+        xs, ys = zip(*pred_coords)
+        xs_ys_by_channel.append([xs, ys])
 
     for i_seqtype, (seqtype_name, seqtype_dict) in enumerate(SEQUENCE_WINDOWS.items()):
-        channel, wc, ww = seqtype_dict['channel'], seqtype_dict['wc'], seqtype_dict['ww']
 
         # image
         img_seqtype = default_cmap(img_crop_cl[:, :, i_seqtype]/255)  # use _cl not _cf, as then not upsampled
@@ -92,26 +114,14 @@ for i_seq, seq in tqdm(enumerate(ds_test.sequences), total=len(ds_test.sequences
         # Draw heatmap
         img_plot = Image.fromarray(img_seqtype)
         preds_colour = preds_to_rgb(pred_batch)
+        print(img_seqtype.shape, preds_colour.shape)
         img_plot = Image.blend(img_plot, Image.fromarray(preds_colour), 0.5)
         axes[0][i_seqtype].imshow(np.array(img_plot))
 
         # Draw base image for lines (lines added in loop)
         axes[1][i_seqtype].imshow(img_seqtype)
 
-        for i_channel in range(pred_batch.shape[1]):  # dim 0 is batch, then prediction channels
-            # pred mask
-            pred = pred_batch[0, i_channel]
-            if RAISE_TO_POWER > 1:
-                pred = np.power(pred, RAISE_TO_POWER)
-            if NORMALISE_PREDS:
-                pred = pred - pred.min()
-                pred = pred / (pred.max() + 1e-8)
-
-            # pred coords
-            pred_coords = pose_mask_to_coords(prediction_mask=pred_batch[0, i_channel])
-            pred_coords = [[coord['x'], coord['y']] for coord in pred_coords]
-            xs, ys = zip(*pred_coords)
-
+        for xs, ys in xs_ys_by_channel:
             # add lines to plot
             axes[1][i_seqtype].plot(xs, ys)
 

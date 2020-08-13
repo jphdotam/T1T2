@@ -10,7 +10,7 @@ from utils.training import load_criterion, save_model, cycle_pose
 from utils.tensorboard import get_summary_writer
 from utils.vis import vis_pose
 
-CONFIG = "../experiments/025.yaml"
+CONFIG = "../experiments/026.yaml"
 
 if __name__ == "__main__":
 
@@ -32,7 +32,7 @@ if __name__ == "__main__":
     train_criterion, test_criterion = load_criterion(cfg)
 
     # Train
-    writer = get_summary_writer(cfg, fold=fold)
+    writer = get_summary_writer(cfg)
     best_loss, best_path, last_save_path = 1e10, None, None
     n_epochs = cfg['training']['n_epochs']
 
@@ -48,11 +48,11 @@ if __name__ == "__main__":
                  'state_dict': model.module.state_dict() if cfg['training']['dataparallel'] else model.state_dict(),
                  'optimizer': optimizer.state_dict(),
                  'scheduler': scheduler}
-        save_path = os.path.join(model_dir, f"{fold}_{epoch}_{test_loss:.07f}.pt")
+        save_path = os.path.join(model_dir, f"{epoch}_{test_loss:.07f}.pt")
         best_loss, last_save_path = save_model(state, save_path, test_loss, best_loss, cfg, last_save_path)
 
         # vis
         vis_pose(dl_test, model, epoch, vis_dir, cfg, show=False, writer=writer, save=True)
 
-    save_path = os.path.join(model_dir, f"{fold}_final_{n_epochs}_{test_loss:.07f}.pt")
+    save_path = os.path.join(model_dir, f"final_{n_epochs}_{test_loss:.07f}.pt")
     best_loss, last_save_path = save_model(state, save_path, test_loss, best_loss, cfg, last_save_path, final=True)

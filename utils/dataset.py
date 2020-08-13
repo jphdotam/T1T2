@@ -20,6 +20,7 @@ class T1T2Dataset(Dataset):
         self.fold = fold
 
         self.n_folds = cfg['training']['n_folds']
+        self.label_format = cfg['export']['format']
         self.mixed_precision = cfg['training'].get('mixed_precision', False)
 
         self.pngdir = cfg['data']['pngdir']
@@ -39,7 +40,12 @@ class T1T2Dataset(Dataset):
                 return 'train'
 
         assert self.train_or_test in ('train', 'test')
-        images = sorted(glob(os.path.join(self.pngdir, f"*__img.png")))
+        if self.label_format == 'png':
+            images = sorted(glob(os.path.join(self.pngdir, f"*__img.png")))
+        elif self.label_format == 'npz':
+            images = sorted(glob(os.path.join(self.pngdir, f"*__combined.npz")))
+        else:
+            raise ValueError()
         dates = list({os.path.basename(i).split('__')[0] for i in images})
         dates = [d for d in dates if get_train_test_for_date(d) == self.train_or_test]
         return dates
@@ -48,11 +54,15 @@ class T1T2Dataset(Dataset):
         """Get a list of tuples of (imgpath, labpath)"""
         sequences = []
         for date in sorted(self.dates):
-            imgpaths = sorted(glob(os.path.join(self.pngdir, f"{date}__*__img.png")))  # Get all images
-            for imgpath in imgpaths:  # Check matching mask
-                labpath = imgpath.replace('__img', '__lab')
-                if os.path.exists(labpath):
-                    sequences.append((imgpath, labpath))
+            if self.label_format == 'png':
+                imgpaths = sorted(glob(os.path.join(self.pngdir, f"{date}__*__img.png")))  # Get all images
+                for imgpath in imgpaths:  # Check matching mask
+                    labpath = imgpath.replace('__img', '__lab')
+                    if os.path.exists(labpath):
+                        sequences.append((imgpath, labpath))
+            elif self.label_format == 'npz':
+                imgpaths = sorted(glob(os.path.join(self.pngdir, f"{date}__*__combined.npz")))  # Get all images
+                sequences.extend(imgpaths)
         print(f"{self.train_or_test.upper():<5} FOLD {self.fold}: Loaded {len(sequences)} over {len(self.dates)} dates")
         return sequences
 
@@ -60,12 +70,20 @@ class T1T2Dataset(Dataset):
         return len(self.sequences)
 
     def __getitem__(self, idx):
-        imgpath, labpath = self.sequences[idx]  # coords will be None if not using high_res mode
-        n_channels_keep_img = len(self.cfg['export']['sequences'])  # May have exported more channels to make valid PNG
+        n_channels_keep_img = len(self.cfg['export']['sequences'])  # May have exported more channels to make PNG
         n_channels_keep_lab = len(self.cfg['export']['label_classes'])
 
-        img = skimage.io.imread(imgpath)[:, :, :n_channels_keep_img]
-        lab = skimage.io.imread(labpath)[:, :, :n_channels_keep_lab]
+        if self.label_format == 'png':
+            imgpath, labpath = self.sequences[idx]
+            img = skimage.io.imread(imgpath)[:, :, :n_channels_keep_img]
+            lab = skimage.io.imread(labpath)[:, :, :n_channels_keep_lab]
+        elif self.label_format == 'npz':
+            imgpath = self.sequences[idx]
+            img = np.load(imgpath)['dicom']
+            lab = np.load(imgpath)['label']
+        else:
+            raise ValueError()
+
         imglab = np.dstack((img, lab))
 
         trans = self.transforms(image=imglab)['image']
@@ -93,6 +111,11 @@ class T1T2Dataset(Dataset):
 
     def get_numpy_paths_for_sequence(self, sequence_tuple):
         npy_root = self.cfg['export']['npydir']
-        imgpath, labpath = sequence_tuple
+        if self.label_format == 'png':
+            imgpath, labpath = sequence_tuple
+        elif self.label_format == 'npz':
+            imgpath = sequence_tuple
+        else:
+            raise ValueError()
         datefolder, studyfolder, npyname, _ext = os.path.basename(imgpath).split('__')
         return os.path.join(npy_root, datefolder, studyfolder, npyname + '.npy')

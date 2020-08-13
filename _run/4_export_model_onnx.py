@@ -7,8 +7,8 @@ from utils.dataset import T1T2Dataset
 from utils.models import load_seg_model
 from utils.transforms import get_segmentation_transforms
 
-CONFIG = "../experiments/024.yaml"
-MODEL_PATH = "../output/models/024/1_95_0.0010754.pt"
+CONFIG = "../experiments/026.yaml"
+MODEL_PATH = "../output/models/026/110_0.0010794.pt"
 
 # Load config & ensure not data parallel
 cfg, vis_dir, model_dir = load_config(CONFIG)

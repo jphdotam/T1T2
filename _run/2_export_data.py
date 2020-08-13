@@ -8,7 +8,7 @@ from utils.cfg import load_config
 from utils.export import export_label
 from utils.windows import SEQUENCE_WINDOWS
 
-CONFIG = "../experiments/024.yaml"
+CONFIG = "../experiments/026.yaml"
 EXCLUDED_FILES_PATH = "../data/blacklist.txt"
 
 # Load config
@@ -18,7 +18,7 @@ output_dir = os.path.join(cfg['data']['pngdir'])
 sequences = cfg['export']['sequences']
 label_classes = cfg['export']['label_classes']
 gaussian_sigma = cfg['export']['gaussian_sigma']
-sequences = cfg['export']['sequences']
+frmt = cfg['export']['format']
 
 # Excluded files
 with open(EXCLUDED_FILES_PATH) as f:
@@ -26,7 +26,7 @@ with open(EXCLUDED_FILES_PATH) as f:
 
 
 def export_label_helper(labelpath):
-    export_label(labelpath, sequences, label_classes, output_dir, gaussian_sigma)
+    export_label(labelpath, frmt, sequences, label_classes, output_dir, gaussian_sigma)
 
 
 def blacklisted(labelpath, excluded_files):

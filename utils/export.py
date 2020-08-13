@@ -45,7 +45,7 @@ def calc_gauss_on_a_scalar_or_matrix(distance, sigma):
     return 0.8 * np.exp(-(distance ** 2) / (2 * sigma ** 2)) + 0.2 * (1 / (1 + distance))
 
 
-def export_label(labelpath, sequences, label_classes, output_dir, gaussian_sigma):
+def export_label(labelpath, frmt, sequences, label_classes, output_dir, gaussian_sigma):
     """Typical labelpath:
 
     E:/Data/T1T2_peter/
@@ -64,19 +64,36 @@ def export_label(labelpath, sequences, label_classes, output_dir, gaussian_sigma
     npy = np.load(seq_path)
     src_height, src_width, src_channels = npy.shape
 
+
+
     # Image
-    assert len(sequences) <= 4, "Number of sequences must be <= 4 to save as PNG"
-    out_channels_img = 3 if len(sequences) <= 3 else 4  # Don't use alpha channel unless needed
+    if frmt == 'png':
+        assert len(sequences) <= 4, "Number of sequences must be <= 4 to save as PNG"
+        out_channels_img = 3 if len(sequences) <= 3 else 4  # Don't use alpha channel unless needed
+    elif frmt == 'npz':
+        out_channels_img = len(sequences)
+    else:
+        raise ValueError()
+
     seq_out = np.zeros((src_height, src_width, out_channels_img), dtype=np.uint8)
 
-    for i_seq_out, (seq_name, seq_dict) in enumerate(sequences.items()):
+    for i_seq, (seq_name, seq_dict) in enumerate(sequences.items()):
         source_channel = seq_dict['channel']
-        wc = seq_dict['wc']
-        ww = seq_dict['ww']
+        method = seq_dict['method']
+        if method == 'window':
+            wc = seq_dict['wc']
+            ww = seq_dict['ww']
 
-        seq = npy[:, :, source_channel]
-        seq = window_numpy(seq, wc, ww, rescale_255=True)
-        seq_out[:, :, i_seq_out] = seq
+            seq = npy[:, :, source_channel]
+            seq = window_numpy(seq, wc, ww, rescale_255=True)
+
+        elif method == 'divmax':
+            seq = npy[:, :, source_channel]
+            seq = seq - seq.min()
+            seq = seq / seq.max()
+            seq = (seq*255).astype(np.uint8)
+
+        seq_out[:, :, i_seq] = seq
 
     # Label
     label = load_pickle(labelpath)
@@ -85,8 +102,14 @@ def export_label(labelpath, sequences, label_classes, output_dir, gaussian_sigma
         return None
     radius_matrix = get_radius_matrix((src_height, src_width))
 
-    assert len(label_classes) <= 4, "Number of output classes must be <= 4 to save as PNG"
-    out_channels_lab = 3 if len(label_classes) <= 3 else 4  # Don't use alpha channel unless needed
+    if frmt == 'png':
+        assert len(label_classes) <= 4, "Number of output classes must be <= 4 to save as PNG"
+        out_channels_lab = 3 if len(label_classes) <= 3 else 4  # Don't use alpha channel unless needed
+    elif frmt == 'npz':
+        out_channels_lab = len(label_classes)
+    else:
+        raise ValueError()
+
     lab_out = np.zeros((src_height, src_width, out_channels_lab), dtype=np.float32)
 
     for i_lab_out, lab_name in enumerate(label_classes):
@@ -126,10 +149,14 @@ def export_label(labelpath, sequences, label_classes, output_dir, gaussian_sigma
     lab_out = (lab_out * 255).astype(np.uint8)
 
     # SAVE
-    # Dicom
-    outpath_img = f"{date_dir}__{study_dir}__{npy_name}__img.png"
-    skimage.io.imsave(os.path.join(output_dir, outpath_img), seq_out, check_contrast=False)
+    if frmt == 'png':
+        # Dicom
+        outpath_img = f"{date_dir}__{study_dir}__{npy_name}__img.png"
+        skimage.io.imsave(os.path.join(output_dir, outpath_img), seq_out, check_contrast=False)
+        # Label
+        outpath_lab = f"{date_dir}__{study_dir}__{npy_name}__lab.png"
+        skimage.io.imsave(os.path.join(output_dir, outpath_lab), lab_out, check_contrast=False)
 
-    # Label
-    outpath_lab = f"{date_dir}__{study_dir}__{npy_name}__lab.png"
-    skimage.io.imsave(os.path.join(output_dir, outpath_lab), lab_out, check_contrast=False)
+    elif frmt == 'npz':
+        outpath = f"{date_dir}__{study_dir}__{npy_name}__combined.npz"
+        np.savez_compressed(os.path.join(output_dir, outpath), dicom=seq_out, label=lab_out)
