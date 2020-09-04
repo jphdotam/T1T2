@@ -14,10 +14,10 @@ SRC_FILES = glob("E:/Data/T1T2_peter/**/*.npy", recursive=True)
 FOV = 256
 
 
-def normalize_data(data, WindowCenter, WindowWidth):
-    window_min = max(0, WindowCenter - WindowWidth // 2)
+def normalize_data(data, window_centre, window_width):
+    window_min = max(0, window_centre - window_width // 2)
     frame = data - window_min
-    frame = frame / (WindowWidth)
+    frame = frame / window_width
     frame = np.clip(frame, 0, 1)
     frame = frame.astype(np.float32)
     return frame
@@ -81,9 +81,9 @@ for i, src in enumerate(SRC_FILES):
     vector_post = landmark_points[[1,2]]
 
     # POSE MODEL
-    t1_pre = normalize_data(t1, WindowCenter=1300.0, WindowWidth=1300.0)
-    t1_post = normalize_data(t1, WindowCenter=500.0, WindowWidth=1000.0)
-    t2 = normalize_data(t2, WindowCenter=60.0, WindowWidth=120.0)
+    t1_pre = normalize_data(t1, window_centre=1300.0, window_width=1300.0)
+    t1_post = normalize_data(t1, window_centre=500.0, window_width=1000.0)
+    t2 = normalize_data(t2, window_centre=60.0, window_width=120.0)
     t1w = t1w - t1w.min()
     t1w /= t1w.max()
     t2w = t2w - t2w.min()

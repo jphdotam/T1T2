@@ -19,8 +19,8 @@ from utils.labeling import save_pickle, load_pickle, get_hui_report_path, conver
 from utils.windows import SEQUENCE_WINDOWS, window_numpy
 from utils.labeling import get_studies_peter as get_studies
 
-DATADIR_PETER = "E:/Data/T1T2_peter"
-DATADIR_HUI = "E:/Data/T1T2_hui"  # False if don't want to check for Hui labels
+DATADIR_PETER = "E:/Data/T1T2_peter_test"
+DATADIR_HUI = False  # "E:/Data/T1T2_hui"  # False if don't want to check for Hui labels
 
 if QtCore.QT_VERSION >= 0x50501:
     def excepthook(type_, value, traceback_):
