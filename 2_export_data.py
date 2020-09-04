@@ -9,7 +9,7 @@ from utils.export import export_label
 from utils.windows import SEQUENCE_WINDOWS
 
 CONFIG = "../experiments/026.yaml"
-EXCLUDED_FILES_PATH = "../data/blacklist.txt"
+EXCLUDED_FILES_PATH = "data/blacklist.txt"
 
 # Load config
 cfg, vis_dir, model_dir = load_config(CONFIG)
