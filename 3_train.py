@@ -7,15 +7,16 @@ from utils.models import load_seg_model
 from utils.optimizers import load_optimizer
 from utils.transforms import get_segmentation_transforms
 from utils.training import load_criterion, save_model, cycle_pose
-from utils.tensorboard import get_summary_writer
 from utils.vis import vis_pose
 
-CONFIG = "../experiments/026.yaml"
+import wandb
+
+CONFIG = "experiments/027.yaml"
 
 if __name__ == "__main__":
 
     # Load config
-    cfg, vis_dir, model_dir = load_config(CONFIG)
+    cfg, model_dir = load_config(CONFIG)
 
     # Data
     train_transforms, test_transforms = get_segmentation_transforms(cfg)
@@ -31,8 +32,11 @@ if __name__ == "__main__":
     optimizer, scheduler = load_optimizer(model, cfg, state, steps_per_epoch=len(dl_train))
     train_criterion, test_criterion = load_criterion(cfg)
 
+    # WandB
+    wandb.init(project="t1t2", config=cfg, notes=cfg.get('notes', None))
+    wandb.watch(model)
+
     # Train
-    writer = get_summary_writer(cfg)
     best_loss, best_path, last_save_path = 1e10, None, None
     n_epochs = cfg['training']['n_epochs']
 
@@ -40,8 +44,8 @@ if __name__ == "__main__":
     for epoch in range(starting_epoch, n_epochs + 1):
         print(f"\nEpoch {epoch} of {n_epochs}")
 
-        train_loss = cycle_pose('train', model, dl_train, epoch, train_criterion, optimizer, cfg, scheduler, writer=writer)
-        test_loss = cycle_pose('test', model, dl_test, epoch, test_criterion, optimizer, cfg, writer=writer)
+        train_loss = cycle_pose('train', model, dl_train, epoch, train_criterion, optimizer, cfg, scheduler)
+        test_loss = cycle_pose('test', model, dl_test, epoch, test_criterion, optimizer, cfg)
 
         # save model if required('all', 'best', or 'improvement')
         state = {'epoch': epoch + 1,
@@ -52,7 +56,7 @@ if __name__ == "__main__":
         best_loss, last_save_path = save_model(state, save_path, test_loss, best_loss, cfg, last_save_path)
 
         # vis
-        vis_pose(dl_test, model, epoch, vis_dir, cfg, show=False, writer=writer, save=True)
+        vis_pose(dl_test, model, epoch, cfg)
 
     save_path = os.path.join(model_dir, f"final_{n_epochs}_{test_loss:.07f}.pt")
     best_loss, last_save_path = save_model(state, save_path, test_loss, best_loss, cfg, last_save_path, final=True)
