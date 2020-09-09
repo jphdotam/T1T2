@@ -9,8 +9,6 @@ from skimage.draw import disk
 def _get_max_of_image_between_two_points(im, x0, y0, x1, y1):
     n_points = int(np.hypot(x1 - x0, y1 - y0))
     x_between, y_between = np.linspace(x0, x1, n_points), np.linspace(y0, y1, n_points)
-    # print(f"x: {x_between[0]} - {x_between[-1]}")
-    # print(f"y: {y_between[0]} - {y_between[-1]}")
     z_between = im[y_between.astype(np.uint8), x_between.astype(np.uint8)]
     z_argmax = np.argmax(z_between)
     x_max, y_max, z_max = x_between[z_argmax], y_between[z_argmax], np.max(z_between)
@@ -21,8 +19,8 @@ def _get_cost_arrays_for_each_route(heatmap, landmarks, raise_to_power=4, block_
     heatmap_epi, heatmap_end = heatmap
     lv_x, lv_y = landmarks[2]
     (rv_ant_x, rv_ant_y), (rv_inf_x, rv_inf_y) = landmarks[:2]
-    cost_epi = (1 - heatmap_epi) ** 4
-    cost_end = (1 - heatmap_end) ** 4
+    cost_epi = (1 - heatmap_epi) ** raise_to_power
+    cost_end = (1 - heatmap_end) ** raise_to_power
 
     # outer paths (inner blocked)
     rv_mid_x, rv_mid_y = int(rv_ant_x + rv_inf_x) // 2, int(rv_ant_y + rv_inf_y) // 2
@@ -47,9 +45,6 @@ def _get_cost_arrays_for_each_route(heatmap, landmarks, raise_to_power=4, block_
                                                                                lv_x, lv_y)
 
     outer_circle_radius = math.sqrt((outer_circle_x - lv_x) ** 2 + (outer_circle_y - lv_y) ** 2)
-    # print(f"LV: {lv_x},{lv_y}")
-    # print(f"INNER: {inner_circle_y}, {inner_circle_x}, {inner_circle_radius} from {double_rv_mid_x},{double_rv_mid_y}")
-    # print(f"OUTER: {outer_circle_y}, {outer_circle_x}, {outer_circle_radius} from {double_opposite_x},{double_opposite_y}")
     rr, cc = disk((outer_circle_y, outer_circle_x), outer_circle_radius, shape=cost_epi.shape)
     cost_inner_epi = cost_epi.copy()
     cost_inner_epi[rr, cc] = block_cost

@@ -24,7 +24,7 @@ model.load_state_dict(torch.load(MODEL_PATH)['state_dict'])
 _, test_transforms = get_segmentation_transforms(cfg)
 ds_test = T1T2Dataset(cfg, 'test', test_transforms)
 dl_train = DataLoader(ds_test, 4, shuffle=True, num_workers=0, pin_memory=True)
-x, y = next(iter(dl_train))
+x, y, _filepath = next(iter(dl_train))
 
 torch.onnx.export(model,
                   x.cuda(),

@@ -7,7 +7,7 @@ from glob import glob
 from utils.landmarks import load_landmark_model, perform_cmr_landmark_detection
 from utils.tracing import get_epi_end_paths_from_heatmap_and_landmarks
 
-POSE_MODELPATH = "../output/models/026/110_0.0010794.pt.onnx"
+POSE_MODELPATH = "output/models/026/110_0.0010794.pt.onnx"
 LANDMARK_MODELPATH = "E:/Data/T1T2_models/CMR_landmark_network_RO_352_E1_352_sax_with_T1_T1T2_LGE_PerfPD_LossMultiSoftProb_KLD_Dice_Pytorch_1.5.1_2020-08-13_20200813_181146.pts"
 SRC_FILES = glob("E:/Data/T1T2_peter/**/*.npy", recursive=True)
 # SRC_FILES = glob("E:/Data/T1T2_peter/20200415/T1T2_141613_3956841_3956849_201_20200415-165703/*.npy", recursive=True)

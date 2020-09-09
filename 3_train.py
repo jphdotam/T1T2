@@ -1,6 +1,8 @@
 import os
 from torch.utils.data import DataLoader
 
+import torch
+
 from utils.cfg import load_config
 from utils.dataset import T1T2Dataset
 from utils.models import load_seg_model
@@ -11,7 +13,7 @@ from utils.vis import vis_pose
 
 import wandb
 
-CONFIG = "experiments/027.yaml"
+CONFIG = "experiments/028.yaml"
 
 if __name__ == "__main__":
 
@@ -34,13 +36,13 @@ if __name__ == "__main__":
 
     # WandB
     wandb.init(project="t1t2", config=cfg, notes=cfg.get('notes', None))
+    wandb.save("*.png")  # Write PNG files immediate to WandB
     wandb.watch(model)
 
     # Train
     best_loss, best_path, last_save_path = 1e10, None, None
     n_epochs = cfg['training']['n_epochs']
 
-    batch_x, batch_y = next(iter(dl_train))
     for epoch in range(starting_epoch, n_epochs + 1):
         print(f"\nEpoch {epoch} of {n_epochs}")
 

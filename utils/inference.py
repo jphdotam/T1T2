@@ -1,3 +1,4 @@
+import os
 import numpy as np
 
 
@@ -35,3 +36,9 @@ def center_crop(img, crop_height, crop_width, centre=None):
         if (col_from + crop_width) > input_width:
             col_from -= (col_from + crop_width - input_width)
     return img[row_from:row_from+crop_height, col_from:col_from+crop_width], (row_from, col_from)
+
+
+def get_original_npy_path_from_exported_npz_path(npz_path, peter_dir):
+    date, study, file, _end = os.path.basename(npz_path).split('__')
+    peter_path = os.path.join(peter_dir, date, study, file + '.npy')
+    return peter_path

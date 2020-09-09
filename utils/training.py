@@ -103,7 +103,7 @@ def cycle_pose(train_or_test, model, dataloader, epoch, criterion, optimizer, cf
                 y_p = y_p['out']
             return crit(y_p, y_t)
 
-    for i_batch, (x, y_true) in enumerate(dataloader):
+    for i_batch, (x, y_true, _filepath) in enumerate(dataloader):
         # Forward pass
         optimizer.zero_grad()
 
@@ -163,17 +163,6 @@ def cycle_pose(train_or_test, model, dataloader, epoch, criterion, optimizer, cf
     wandb.log({'epoch': epoch, f'loss_{train_or_test}': loss})
 
     return loss
-
-
-
-
-
-
-
-
-
-
-
 
 
 def save_model(state, save_path, test_metric, best_metric, cfg, last_save_path, lowest_best=True, final=False):
