@@ -143,7 +143,6 @@ def get_landmark_from_prob_fast(prob, thres=0.1):
     return pt : [x, y]
     """
 
-
     pt = None
 
     if (thres > 0 and np.max(prob) < thres):
@@ -294,4 +293,5 @@ def perform_cmr_landmark_detection(im, model, fast_mode=0.0, batch_size=8, p_thr
     pts = np.reshape(pts, (N_pts, 2) + ori_shape[2:])
 
     return pts, probs
+
 

@@ -107,7 +107,7 @@ class T1T2Dataset(Dataset):
             x = x.float()
             y = y.float()
 
-        return x, y
+        return x, y, imgpath
 
     def get_numpy_paths_for_sequence(self, sequence_tuple):
         npy_root = self.cfg['export']['npydir']

@@ -7,6 +7,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.cuda.amp import autocast
 
+import wandb
+
 
 def load_criterion(cfg):
 
@@ -64,119 +66,6 @@ class Am:
         self.running_average = sum(self.running) / len(self.running)
 
 
-def cycle_seg(train_or_test, model, dataloader, epoch, criterion, optimizer, cfg, scheduler=None, writer=None):
-    log_freq = cfg['output']['log_freq']
-    device = cfg['training']['device']
-    mixed_precision = cfg['training'].get('mixed_precision', False)
-    aux_loss_weight = cfg['training'].get('aux_loss', False)
-    meter_loss = Am()
-    accus, accus_nobg = [], []
-
-    if train_or_test == 'train':
-        model.train()
-        training = True
-    elif train_or_test == 'test':
-        model.eval()
-        training = False
-    else:
-        raise ValueError(f"train_or_test must be 'train', or 'test', not {train_or_test}")
-
-    def get_loss(y_p, y_t, crit, aux_loss_wt):
-        if aux_loss_weight:
-            loss_aux = crit(y_p['aux'], y_t)
-            loss_out = crit(y_p['out'], y_t)
-            return (loss_aux * aux_loss_wt) + loss_out
-        else:
-            if type(y_p) == OrderedDict:
-                y_p = y_p['out']
-            return crit(y_p, y_t)
-
-    for i_batch, (x, y_true) in enumerate(dataloader):
-        # Forward pass
-        optimizer.zero_grad()
-
-        x = x.to(device, non_blocking=True)
-        y_true = y_true.to(device, non_blocking=True)
-
-        # Forward pass
-        if training:
-            if mixed_precision:
-                with autocast():
-                    y_pred = model(x)
-                    loss = get_loss(y_pred, y_true, criterion, aux_loss_weight)
-            else:
-                y_pred = model(x)
-                loss = get_loss(y_pred, y_true, criterion, aux_loss_weight)
-        else:
-            with torch.no_grad():
-                if mixed_precision:
-                    with autocast():
-                        y_pred = model(x)
-                        loss = get_loss(y_pred, y_true, criterion, aux_loss_wt=False)
-                else:
-                    y_pred = model(x)
-                    loss = get_loss(y_pred, y_true, criterion, aux_loss_wt=False)
-
-        # Backward pass
-        if training:
-            if mixed_precision:
-                model.module.scaler.scale(loss).backward()
-                model.module.scaler.step(optimizer)
-                model.module.scaler.update()
-            else:
-                loss.backward()
-                optimizer.step()
-            if scheduler:
-                scheduler.step()
-
-        # Metrics
-        with torch.no_grad():
-            if type(y_pred) == OrderedDict:
-                y_pred = y_pred['out']
-            ph, pw = y_pred.size(2), y_pred.size(3)
-            h, w = y_true.size(1), y_true.size(2)
-            if ph != h or pw != w:
-                y_pred = F.upsample(
-                    input=y_pred, size=(h, w), mode='bilinear')
-
-            cls_pred = torch.argmax(y_pred, dim=1).flatten()
-            cls_true = y_true.flatten()
-
-            accu = (1 - torch.mean((cls_pred == cls_true).float())).cpu().numpy()
-
-            # accu = accuracy_score(cls_true_flat, cls_pred_flat)
-            accus.append(accu)
-
-        meter_loss.update(loss, x.size(0))
-
-        # Loss intra-epoch printing
-        if (i_batch + 1) % log_freq == 0:
-
-            print(f"{train_or_test.upper(): >5} [{i_batch + 1:04d}/{len(dataloader):04d}]"
-                  f"\t\tLOSS: {meter_loss.running_average:.7f}\t\tACCU: {accu:.4f}")
-
-            if writer and training:
-                i_iter = ((epoch - 1) * len(dataloader)) + i_batch + 1
-                writer.add_scalar(f"LossIter/{train_or_test}", meter_loss.running_average, i_iter)
-                writer.add_scalar(f"AccuIter/{train_or_test}", accu, i_iter)
-
-    accu = np.mean(accus)
-    print(f"{train_or_test.upper(): >5} Complete!"
-          f"\t\t\tLOSS: {meter_loss.avg:.7f}\t\tACCU: {accu:.4f}")
-
-    loss = float(meter_loss.avg.detach().cpu().numpy())
-
-    if writer:
-        writer.add_scalar(f"LossEpoch/{train_or_test}", loss, epoch)
-        writer.add_scalar(f"AccuEpoch/{train_or_test}", accu, epoch)
-
-    return loss
-
-
-
-
-
-
 def upsample_pred_if_needed(batch_y_pred, batch_y_true):
     ph, pw = batch_y_pred.size(-2), batch_y_pred.size(-1)
     h, w = batch_y_true.size(-2), batch_y_true.size(-1)
@@ -188,11 +77,7 @@ def upsample_pred_if_needed(batch_y_pred, batch_y_true):
         return batch_y_pred
 
 
-
-
-
-
-def cycle_pose(train_or_test, model, dataloader, epoch, criterion, optimizer, cfg, scheduler=None, writer=None):
+def cycle_pose(train_or_test, model, dataloader, epoch, criterion, optimizer, cfg, scheduler=None):
     log_freq = cfg['output']['log_freq']
     device = cfg['training']['device']
     mixed_precision = cfg['training'].get('mixed_precision', False)
@@ -218,7 +103,7 @@ def cycle_pose(train_or_test, model, dataloader, epoch, criterion, optimizer, cf
                 y_p = y_p['out']
             return crit(y_p, y_t)
 
-    for i_batch, (x, y_true) in enumerate(dataloader):
+    for i_batch, (x, y_true, _filepath) in enumerate(dataloader):
         # Forward pass
         optimizer.zero_grad()
 
@@ -268,30 +153,16 @@ def cycle_pose(train_or_test, model, dataloader, epoch, criterion, optimizer, cf
             print(f"{train_or_test.upper(): >5} [{i_batch + 1:04d}/{len(dataloader):04d}]"
                   f"\t\tLOSS: {meter_loss.running_average:.7f}")
 
-            if writer and training:
-                i_iter = ((epoch - 1) * len(dataloader)) + i_batch + 1
-                writer.add_scalar(f"LossIter/{train_or_test}", meter_loss.running_average, i_iter)
+            if training:
+                wandb.log({"batch": len(dataloader) * epoch + i_batch, f"loss_{train_or_test}": loss})
 
     print(f"{train_or_test.upper(): >5} Complete!"
           f"\t\t\tLOSS: {meter_loss.avg:.7f}")
 
     loss = float(meter_loss.avg.detach().cpu().numpy())
-
-    if writer:
-        writer.add_scalar(f"LossEpoch/{train_or_test}", loss, epoch)
+    wandb.log({'epoch': epoch, f'loss_{train_or_test}': loss})
 
     return loss
-
-
-
-
-
-
-
-
-
-
-
 
 
 def save_model(state, save_path, test_metric, best_metric, cfg, last_save_path, lowest_best=True, final=False):
