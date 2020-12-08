@@ -1,8 +1,6 @@
 import os
 from torch.utils.data import DataLoader
 
-import torch
-
 from utils.cfg import load_config
 from utils.dataset import T1T2Dataset
 from utils.models import load_seg_model

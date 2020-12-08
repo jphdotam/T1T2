@@ -22,24 +22,6 @@ def get_radius_matrix(image_dimensions):
     return radius_matrix
 
 
-def pad_if_needed(img, min_height, min_width, centre_pad):
-    input_height, input_width = img.shape[:2]
-    new_shape = list(img.shape)
-    new_shape[0] = max(input_height, min_height)
-    new_shape[1] = max(input_width, min_width)
-    out = np.zeros(new_shape, dtype=img.dtype)
-    if centre_pad:
-        row_from, col_from = 0, 0
-        if input_height < min_height:
-            row_from = (min_height - input_height) // 2
-        if input_width < min_width:
-            col_from = (min_width - input_width) // 2
-        out[row_from:row_from + input_height, col_from:col_from + input_width] = img
-    else:
-        out[:input_height, :input_width] = img
-    return out
-
-
 def calc_gauss_on_a_scalar_or_matrix(distance, sigma):
     # partly gaussian but partly a hyperbola or something, so there is some gradient, however feeble, *everwhere*
     return 0.8 * np.exp(-(distance ** 2) / (2 * sigma ** 2)) + 0.2 * (1 / (1 + distance))
@@ -64,14 +46,14 @@ def export_label(labelpath, frmt, sequences, label_classes, output_dir, gaussian
     npy = np.load(seq_path)
     src_height, src_width, src_channels = npy.shape
 
-
-
     # Image
     if frmt == 'png':
         assert len(sequences) <= 4, "Number of sequences must be <= 4 to save as PNG"
         out_channels_img = 3 if len(sequences) <= 3 else 4  # Don't use alpha channel unless needed
-    elif frmt == 'npz':
+        out_channels_lab = 3 if len(label_classes) <= 3 else 4  # Don't use alpha channel unless needed
+    elif frmt == 'npz' or frmt == 'return':
         out_channels_img = len(sequences)
+        out_channels_lab = len(label_classes)
     else:
         raise ValueError()
 
@@ -93,6 +75,9 @@ def export_label(labelpath, frmt, sequences, label_classes, output_dir, gaussian
             seq = seq / seq.max()
             seq = (seq*255).astype(np.uint8)
 
+        else:
+            raise ValueError()
+
         seq_out[:, :, i_seq] = seq
 
     # Label
@@ -101,14 +86,6 @@ def export_label(labelpath, frmt, sequences, label_classes, output_dir, gaussian
         print(f"Labels missing for study {labelpath} (only {label.keys()} present)")
         return None
     radius_matrix = get_radius_matrix((src_height, src_width))
-
-    if frmt == 'png':
-        assert len(label_classes) <= 4, "Number of output classes must be <= 4 to save as PNG"
-        out_channels_lab = 3 if len(label_classes) <= 3 else 4  # Don't use alpha channel unless needed
-    elif frmt == 'npz':
-        out_channels_lab = len(label_classes)
-    else:
-        raise ValueError()
 
     lab_out = np.zeros((src_height, src_width, out_channels_lab), dtype=np.float32)
 
@@ -160,3 +137,5 @@ def export_label(labelpath, frmt, sequences, label_classes, output_dir, gaussian
     elif frmt == 'npz':
         outpath = f"{date_dir}__{study_dir}__{npy_name}__combined.npz"
         np.savez_compressed(os.path.join(output_dir, outpath), dicom=seq_out, label=lab_out)
+
+    return seq_out, lab_out

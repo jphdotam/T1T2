@@ -14,12 +14,11 @@ import wandb
 
 
 def vis_pose(dataloader, model, epoch, cfg):
-
     def resize_for_vis(img, vis_res, is_mask):
         return skimage.transform.resize(img, vis_res, order=0 if is_mask else 1)
 
     def stick_posemap_on_frame(frame, posemap):
-        posemap = posemap.transpose((1,2,0))
+        posemap = posemap.transpose((1, 2, 0))
         if posemap.shape[:2] != frame.shape[:2]:
             posemap = resize_for_vis(posemap, frame.shape[:2], is_mask=True)
         img = np.dstack((frame, frame, frame))
@@ -87,7 +86,8 @@ def vis_pose(dataloader, model, epoch, cfg):
             (xs_epi, ys_epi), (xs_end, ys_end) = get_paths(pred_np, landmark_points)
 
         # ridges to masks
-        mask_lvcav, mask_lvwall = np.zeros_like(t2w_landmark, dtype=np.uint8), np.zeros_like(t2w_landmark, dtype=np.uint8)
+        mask_lvcav, mask_lvwall = np.zeros_like(t2w_landmark, dtype=np.uint8), np.zeros_like(t2w_landmark,
+                                                                                             dtype=np.uint8)
         points_end = np.array([list(zip(xs_end, ys_end))])
         points_epi = np.array([list(zip(xs_epi, ys_epi))])
         color = np.uint8(np.ones(3) * 1).tolist()
@@ -120,29 +120,12 @@ def vis_pose(dataloader, model, epoch, cfg):
 
     return images, masks
 
-if __name__ == "__main__":
-    from torch.utils.data import DataLoader
-    from utils.cfg import load_config
-    from utils.dataset import T1T2Dataset
-    from utils.models import load_seg_model
-    from utils.transforms import get_segmentation_transforms
-    import matplotlib.pyplot as plt
 
-    CONFIG = "../experiments/027.yaml"
-
-    cfg, model_dir = load_config(CONFIG, skip_dir_creation=True)
-    cfg['data']['pngdir'] = "../data/npz_pose_2"
-
-    # Data
-    train_transforms, test_transforms = get_segmentation_transforms(cfg)
-    ds_train = T1T2Dataset(cfg, 'train', train_transforms)
-    ds_test = T1T2Dataset(cfg, 'test', test_transforms)
-    dl_train = DataLoader(ds_train, cfg['training']['batch_size'], shuffle=True,
-                          num_workers=cfg['training']['num_workers'], pin_memory=True)
-    dl_test = DataLoader(ds_test, cfg['training']['batch_size'], shuffle=False,
-                         num_workers=1, pin_memory=True)
-
-    # Model
-    model, starting_epoch, state = load_seg_model(cfg)
-    model.load_state_dict(torch.load(r"E:\Dropbox\Work\Other projects\T1T2\output\models\027\150_0.0009654.pt")['state_dict'])
-    heatmaps, masks = vis_pose(dl_test, model, 0, cfg)
+def iou(sectors1, sectors2, group_sectors=True):
+    if not group_sectors:
+        raise AttributeError()
+    sectors1 = sectors1.astype(np.bool)
+    sectors2 = sectors2.astype(np.bool)
+    intersect = sectors1 & sectors2
+    union = sectors1 | sectors2
+    return intersect.sum() / union.sum()

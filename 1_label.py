@@ -6,7 +6,6 @@ from matplotlib import cm
 from scipy.stats import iqr
 from collections import defaultdict
 
-
 from PyQt5 import QtCore, QtWidgets, QtGui
 from PyQt5.QtCore import pyqtSlot
 from PyQt5.QtGui import QKeySequence
@@ -19,7 +18,8 @@ from utils.labeling import save_pickle, load_pickle, get_hui_report_path, conver
 from utils.windows import SEQUENCE_WINDOWS, window_numpy
 from utils.labeling import get_studies_peter as get_studies
 
-DATADIR_PETER = "E:/Data/T1T2_peter_test"
+DATADIR_PETER = "E:/Data/T1T2_peter"
+#DATADIR_PETER = "E:/Data/T1T2_peter_test_james"
 DATADIR_HUI = False  # "E:/Data/T1T2_hui"  # False if don't want to check for Hui labels
 
 if QtCore.QT_VERSION >= 0x50501:

@@ -7,11 +7,11 @@ from utils.dataset import T1T2Dataset
 from utils.models import load_seg_model
 from utils.transforms import get_segmentation_transforms
 
-CONFIG = "../experiments/026.yaml"
-MODEL_PATH = "output/models/026/110_0.0010794.pt"
+CONFIG = "./experiments/028.yaml"
+MODEL_PATH = "./output/models/028/150_0.0009576.pt"
 
 # Load config & ensure not data parallel
-cfg, vis_dir, model_dir = load_config(CONFIG)
+cfg, model_dir = load_config(CONFIG)
 cfg['training']['dataparallel'] = False
 cfg['training']['mixed_precision'] = False
 

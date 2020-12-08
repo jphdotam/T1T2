@@ -6,7 +6,6 @@ from tqdm import tqdm
 
 from utils.cfg import load_config
 from utils.export import export_label
-from utils.windows import SEQUENCE_WINDOWS
 
 CONFIG = "../experiments/026.yaml"
 EXCLUDED_FILES_PATH = "data/blacklist.txt"

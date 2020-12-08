@@ -21,7 +21,6 @@ def center_crop(img, crop_height, crop_width, centre=None):
     """Either crops by the center of the image, or around a supplied point.
     Does not pad; if the supplied centre is towards the egde of the image, the padded
     area is shifted so crops start at 0 and only go up to the max row/col
-
     Returns both the new crop, and the top-left coords as a row,col tuple"""
     input_height, input_width = img.shape[:2]
     if centre is None:

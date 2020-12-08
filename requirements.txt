@@ -14,3 +14,4 @@ scikit-image
 torchvision
 albumentations
 onnxruntime
+statsmodels
