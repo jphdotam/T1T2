@@ -9,18 +9,16 @@ from collections import defaultdict
 from PyQt5 import QtCore, QtWidgets, QtGui
 from PyQt5.QtCore import pyqtSlot
 from PyQt5.QtGui import QKeySequence
-from PyQt5.QtWidgets import QWidget, QShortcut
+from PyQt5.QtWidgets import QShortcut
 
 from labelling.ui.css import css
 from labelling.ui.layout_label import Ui_MainWindow
 from utils.cmaps import default_cmap
-from utils.labeling import save_pickle, load_pickle, get_hui_report_path, convert_hui_coords_to_peter_coords
+from utils.labeling import save_pickle, load_pickle
 from utils.windows import SEQUENCE_WINDOWS, window_numpy
 from utils.labeling import get_studies_peter as get_studies
 
-DATADIR_PETER = "E:/Data/T1T2_peter"
-#DATADIR_PETER = "E:/Data/T1T2_peter_test_james"
-DATADIR_HUI = False  # "E:/Data/T1T2_hui"  # False if don't want to check for Hui labels
+DATADIR_TO_LABEL = r"C:\Users\James\Desktop\t1t2_november_HH"
 
 if QtCore.QT_VERSION >= 0x50501:
     def excepthook(type_, value, traceback_):
@@ -31,7 +29,7 @@ sys.excepthook = excepthook
 LABELS = ('endo', 'epi', 'myo')
 
 class MainWindowUI(Ui_MainWindow):
-    def __init__(self, mainwindow, data_root_dir=DATADIR_PETER):
+    def __init__(self, mainwindow, data_root_dir=DATADIR_TO_LABEL):
 
         super(MainWindowUI, self).__init__()
         self.data_root_dir = data_root_dir
@@ -54,7 +52,7 @@ class MainWindowUI(Ui_MainWindow):
                              'myo': self.pushButton_myo}
         self.labelmode = 'add'
 
-        self.sequences = get_studies(self.data_root_dir, check_hui_label=DATADIR_HUI)
+        self.sequences = get_studies(self.data_root_dir)
         self.refresh_studyselector()
         self.comboBox_studies.activated.connect(self.load_study)
         self.comboBox_sequences.activated.connect(self.load_sequence)
@@ -140,7 +138,7 @@ class MainWindowUI(Ui_MainWindow):
             return load_pickle(report_path)
         else:
             if hui_reported:
-                hui_report_path = get_hui_report_path(self.numpy_path, DATADIR_HUI)
+                hui_report_path = get_hui_report_path(self.numpy_path)
                 if hui_report_path:
                     return convert_hui_coords_to_peter_coords(load_pickle(hui_report_path))
             return defaultdict(list)

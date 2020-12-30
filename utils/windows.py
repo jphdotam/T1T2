@@ -13,6 +13,14 @@ SEQUENCE_WINDOWS = {"T1w": [{'wc': 1300, 'ww': 1300}, {'wc': 500, 'ww': 1000}],
                     "T1": [{'wc': 1300, 'ww': 1300}, {'wc': 500, 'ww': 1000}],
                     "T2": [{'wc': 60, 'ww': 120}]}
 
+WW_T1_PRE = SEQUENCE_WINDOWS['T1'][0]['ww']
+WC_T1_PRE = SEQUENCE_WINDOWS['T1'][0]['wc']
+
+WW_T1_POST = SEQUENCE_WINDOWS['T1'][1]['ww']
+WC_T1_POST = SEQUENCE_WINDOWS['T1'][1]['wc']
+
+WW_T2 = SEQUENCE_WINDOWS['T2'][0]['ww']
+WC_T2 = SEQUENCE_WINDOWS['T2'][0]['wc']
 
 def window_numpy(img: np.ndarray,
                  window_centre: Union[float, int],
@@ -50,7 +58,7 @@ def normalize_data(data, window_centre, window_width):
 
 if __name__ == "__main__":
     x = np.random.rand(256, 256) * 32
-    y = window_numpy(x, window_centre=16, window_width=32, cmap=cm.gray)
+    y = window_numpy(x, window_centre=16, window_width=32, cmap=cm.get_cmap('gray'))
     print(y.min(), y.max())
     plt.imshow(y)
     plt.show()
