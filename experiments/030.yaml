@@ -98,6 +98,3 @@ transforms:
   test:
     centrecrop: [256, 256]
     final_resize: [512, 512]
-
-landmarks:
-  model_path: E:/Data/T1T2_models/CMR_landmark_network_RO_352_E1_352_sax_with_T1_T1T2_LGE_PerfPD_LossMultiSoftProb_KLD_Dice_Pytorch_1.5.1_2020-08-13_20200813_181146.pts

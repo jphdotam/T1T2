@@ -31,7 +31,7 @@ def _get_cost_arrays_for_each_route(heatmap, landmarks, raise_to_power=4, block_
                                                                                lv_x, lv_y)
 
     inner_circle_radius = math.sqrt((rv_ant_x - rv_inf_x) ** 2 + (rv_ant_y - rv_inf_y) ** 2) * 0.3
-    rr, cc = disk((inner_circle_y, inner_circle_x), inner_circle_radius, shape=cost_epi.shape)
+    rr, cc = disk(inner_circle_y, inner_circle_x, inner_circle_radius, shape=cost_epi.shape)
     cost_outer_epi = cost_epi.copy()
     cost_outer_epi[rr, cc] = block_cost
     cost_outer_end = cost_end.copy()
@@ -45,7 +45,7 @@ def _get_cost_arrays_for_each_route(heatmap, landmarks, raise_to_power=4, block_
                                                                                lv_x, lv_y)
 
     outer_circle_radius = math.sqrt((outer_circle_x - lv_x) ** 2 + (outer_circle_y - lv_y) ** 2)
-    rr, cc = disk((outer_circle_y, outer_circle_x), outer_circle_radius, shape=cost_epi.shape)
+    rr, cc = disk(outer_circle_y, outer_circle_x, outer_circle_radius, shape=cost_epi.shape)
     cost_inner_epi = cost_epi.copy()
     cost_inner_epi[rr, cc] = block_cost
     cost_inner_end = cost_end.copy()

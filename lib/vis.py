@@ -33,7 +33,7 @@ def vis_pose(dataloader, model, epoch, cfg):
     vis_n = cfg['output']['vis_n']
     vis_res = cfg['output']['vis_res']
     device = cfg['training']['device']
-    landmark_model_path = cfg['landmarks']['model_path']
+    landmark_model_path = cfg['export']['landmark_model_path']
     mask_classes = cfg['output']['mask_classes']
 
     batch_x, batch_y_true, batch_filepaths = next(iter(dataloader))
@@ -63,7 +63,7 @@ def vis_pose(dataloader, model, epoch, cfg):
         img_withoutmask = np.concatenate((img_plain, img_heatmaps), axis=0)
 
         # landmark detection
-        orig_npy_path = get_original_npy_path_from_exported_npz_path(filepath, cfg['export']['npydir'])
+        orig_npy_path = get_original_npy_path_from_exported_npz_path(filepath, cfg['export']['dicom_path_trainval'])
         t1w, t2w, pd, t1, t2 = np.transpose(np.load(orig_npy_path), (2, 0, 1))
         t2w_landmark, _top_left_landmark = center_crop(pad_if_needed(t2w, min_height=256, min_width=256),
                                                        crop_height=256, crop_width=256)
