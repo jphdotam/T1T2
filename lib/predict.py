@@ -1,11 +1,11 @@
 import skimage.io
 import numpy as np
-from utils.windows import *
-from utils.inference import center_crop, pad_if_needed
-from utils.landmarks import perform_cmr_landmark_detection
-from utils.tracing import get_epi_end_paths_from_heatmap_and_landmarks as get_paths
+from lib.windows import *
+from lib.inference import center_crop, pad_if_needed
+from lib.landmarks import perform_cmr_landmark_detection
+from lib.tracing import get_epi_end_paths_from_heatmap_and_landmarks as get_paths
 
-def predict_pose(pose_session, t1, t2, fov):
+def predict_pose(pose_session, t1, t2, t1w, t2w, pd, fov):
     t1_pre = normalize_data(t1, window_centre=WC_T1_PRE, window_width=WW_T1_PRE)
     t1_post = normalize_data(t1, window_centre=WC_T1_POST, window_width=WW_T1_POST)
     t2 = normalize_data(t2, window_centre=WC_T2, window_width=WW_T2)
@@ -51,7 +51,7 @@ def get_points(pose_session, landmark_model, npy, fov):
     vector_post = landmark_points[[1,2]]
 
     # POSE MODEL
-    pred_batch = predict_pose(pose_session, t1, t2, fov)
+    pred_batch = predict_pose(pose_session, t1, t2, t1w, t2w, pd, fov)
 
     # rv masks
     rvi1_xy, rvi2_xy, lv_xy = landmark_points

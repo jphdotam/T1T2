@@ -1,17 +1,17 @@
 import os
 from torch.utils.data import DataLoader
 
-from utils.cfg import load_config
-from utils.dataset import T1T2Dataset
-from utils.models import load_seg_model
-from utils.optimizers import load_optimizer
-from utils.transforms import get_segmentation_transforms
-from utils.training import load_criterion, save_model, cycle_pose
-from utils.vis import vis_pose
+from lib.cfg import load_config
+from lib.dataset import T1T2Dataset
+from lib.models import load_seg_model
+from lib.optimizers import load_optimizer
+from lib.transforms import get_segmentation_transforms
+from lib.training import load_criterion, save_model, cycle_pose
+from lib.vis import vis_pose
 
 import wandb
 
-CONFIG = "experiments/028.yaml"
+CONFIG = "experiments/030.yaml"
 
 if __name__ == "__main__":
 

@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from torchvision.models.segmentation import fcn_resnet101, deeplabv3_resnet101
 
-from utils.hrnet import get_hrnet_cfg, get_hrnet_model
+from lib.hrnet import get_hrnet_cfg, get_hrnet_model
 
 def load_seg_model(cfg, load_model_only=False):
     modeltype = cfg['training']['model']

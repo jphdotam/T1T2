@@ -5,10 +5,10 @@ from collections import OrderedDict
 
 import torch
 
-from utils.tracing import get_epi_end_paths_from_heatmap_and_landmarks as get_paths
-from utils.landmarks import load_landmark_model, perform_cmr_landmark_detection
-from utils.bullseye import compute_bullseye_sector_mask_for_slice
-from utils.inference import center_crop, pad_if_needed, get_original_npy_path_from_exported_npz_path
+from lib.tracing import get_epi_end_paths_from_heatmap_and_landmarks as get_paths
+from lib.landmarks import load_landmark_model, perform_cmr_landmark_detection
+from lib.bullseye import compute_bullseye_sector_mask_for_slice
+from lib.inference import center_crop, pad_if_needed, get_original_npy_path_from_exported_npz_path
 
 import wandb
 

@@ -6,7 +6,7 @@ from torch.optim import Adam, AdamW
 from torch.optim.optimizer import Optimizer
 from torch.optim.lr_scheduler import OneCycleLR
 
-from utils.schedulers import JamesFlatCosineLR
+from lib.schedulers import JamesFlatCosineLR
 
 def load_optimizer(model, cfg, state, steps_per_epoch=None):
     resuming = cfg['resume'].get('path', False) is not False

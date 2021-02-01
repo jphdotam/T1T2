@@ -59,14 +59,23 @@ def get_studies_peter(path):
         seq_name, scanner_id, study_id, patient_id, meas_id, date, time = matches
         run_id = os.path.splitext(os.path.basename(numpy_path))[0].rsplit('_', 1)[1]
 
-        report_path = numpy_path + '.pickle'
-        reported = 'peter' if os.path.exists(report_path) else 'no'
+        human_report_path = numpy_path + '_HUMAN.pickle'
+        auto_report_path = numpy_path + '_AUTO.pickle'
+        if os.path.exists(human_report_path+'.invalid') or os.path.exists(auto_report_path+'.invalid'):
+            reported = 'invalid'
+        elif os.path.exists(human_report_path):
+            reported = 'human'
+        elif os.path.exists(auto_report_path):
+            reported = 'auto'
+        else:
+            reported = 'no'
 
         scan_id = f"{scanner_id}_{patient_id}_{study_id}_{meas_id}_{date}-{time} - {run_id}"
         assert scan_id not in sequences, f"Found clashing ID {scan_id}"
         sequences[scan_id] = {
             'numpy_path': numpy_path,
-            'report_path': report_path,
+            'human_report_path': human_report_path,
+            'auto_report_path': auto_report_path,
             'reported': reported,
         }
     return sequences

@@ -3,8 +3,8 @@ import numpy as np
 import skimage.io
 import skimage.transform
 from scipy import interpolate
-from utils.labeling import load_pickle
-from utils.windows import window_numpy
+from lib.labeling import load_pickle
+from lib.windows import window_numpy
 
 
 def get_radius_matrix(image_dimensions):
@@ -27,7 +27,7 @@ def calc_gauss_on_a_scalar_or_matrix(distance, sigma):
     return 0.8 * np.exp(-(distance ** 2) / (2 * sigma ** 2)) + 0.2 * (1 / (1 + distance))
 
 
-def export_label(labelpath, frmt, sequences, label_classes, output_dir, gaussian_sigma):
+def export_label(data_path, label_path, frmt, sequences, label_classes, output_dir, gaussian_sigma):
     """Typical labelpath:
 
     E:/Data/T1T2_peter/
@@ -38,12 +38,11 @@ def export_label(labelpath, frmt, sequences, label_classes, output_dir, gaussian
     if windows is not None, the dictionary will be used to normalise each image between 0 and 255
 
     """
-    seq_path = os.path.splitext(labelpath)[0]
-    date_dir = os.path.basename(os.path.dirname(os.path.dirname(labelpath)))  # 20200313
-    study_dir = os.path.basename(os.path.dirname(labelpath))  # T1T2_42363_588453382_588453387_1639_20200313-105857
-    npy_name = os.path.splitext(os.path.basename(seq_path))[0]  # T1_T2_PD_SLC0_CON0_PHS0_REP0_SET0_AVE0_1.npy
+    date_dir = os.path.basename(os.path.dirname(os.path.dirname(label_path)))  # 20200313
+    study_dir = os.path.basename(os.path.dirname(label_path))  # T1T2_42363_588453382_588453387_1639_20200313-105857
+    npy_name = os.path.basename(data_path)
 
-    npy = np.load(seq_path)
+    npy = np.load(data_path)
     src_height, src_width, src_channels = npy.shape
 
     # Image
@@ -81,9 +80,9 @@ def export_label(labelpath, frmt, sequences, label_classes, output_dir, gaussian
         seq_out[:, :, i_seq] = seq
 
     # Label
-    label = load_pickle(labelpath)
+    label = load_pickle(label_path)
     if any(label_class not in label for label_class in label_classes):
-        print(f"Labels missing for study {labelpath} (only {label.keys()} present)")
+        print(f"Labels missing for study {label_path} (only {label.keys()} present)")
         return None
     radius_matrix = get_radius_matrix((src_height, src_width))
 

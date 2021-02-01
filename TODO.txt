@@ -1,0 +1,4 @@
+1) Make human labels have suffice _HUMAN.txt
+    - Rename but also have it so labelling software saves human labels as .HUMAN and makes human labels green and auto as yellow
+2) Check export labelling code works
+3) Train

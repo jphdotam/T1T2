@@ -39,5 +39,5 @@ def center_crop(img, crop_height, crop_width, centre=None):
 
 def get_original_npy_path_from_exported_npz_path(npz_path, peter_dir):
     date, study, file, _end = os.path.basename(npz_path).split('__')
-    peter_path = os.path.join(peter_dir, date, study, file + '.npy')
+    peter_path = os.path.join(peter_dir, date, study, file)
     return peter_path

@@ -13,12 +13,12 @@ from PyQt5.QtWidgets import QShortcut
 
 from labelling.ui.css import css
 from labelling.ui.layout_label import Ui_MainWindow
-from utils.cmaps import default_cmap
-from utils.labeling import save_pickle, load_pickle
-from utils.windows import SEQUENCE_WINDOWS, window_numpy
-from utils.labeling import get_studies_peter as get_studies
+from lib.cmaps import default_cmap
+from lib.labeling import save_pickle, load_pickle
+from lib.windows import SEQUENCE_WINDOWS, window_numpy
+from lib.labeling import get_studies_peter as get_studies
 
-DATADIR_TO_LABEL = r"C:\Users\James\Desktop\t1t2_november_HH"
+DATADIR_TO_LABEL = "./data/dicoms/test"
 
 if QtCore.QT_VERSION >= 0x50501:
     def excepthook(type_, value, traceback_):
@@ -42,6 +42,8 @@ class MainWindowUI(Ui_MainWindow):
         self.i_window = 0
 
         self.numpy_path = None
+        self.human_report_path = None
+        self.auto_report_path = None
 
         self.img_array = None
         self.roi_coords = defaultdict(list)
@@ -62,23 +64,25 @@ class MainWindowUI(Ui_MainWindow):
     def refresh_studyselector(self):
         self.comboBox_studies.clear()
         self.comboBox_studies.addItem("Please select a study")
-        n_reported, n_reported_hui = 0, 0
+        n_reported_human, n_reported_auto = 0, 0
         for sequence_id, sequence_dict in self.sequences.items():
             self.comboBox_studies.addItem(sequence_id)
 
-            if sequence_dict['reported'] == 'peter':
+            if sequence_dict['reported'] == 'human':
                 colour = 'green'
-                n_reported += 1
-            elif sequence_dict['reported'] == 'hui':
+                n_reported_human += 1
+            elif sequence_dict['reported'] == 'auto':
                 colour = 'yellow'
-                n_reported_hui += 1
+                n_reported_auto += 1
             elif sequence_dict['reported'] == 'no':
+                colour = 'white'
+            elif sequence_dict['reported'] == 'invalid':
                 colour = 'red'
             else:
                 raise ValueError()
 
             self.comboBox_studies.setItemData(self.comboBox_studies.count()-1, QtGui.QColor(colour), QtCore.Qt.BackgroundRole)
-        print(f"{n_reported} of {len(self.sequences)} reported {'(' + str(n_reported_hui) + ' hui reports)' if n_reported_hui else ''}")
+        print(f"{n_reported_auto+n_reported_human} of {len(self.sequences)} reported ({n_reported_human} human labelled, {n_reported_auto} auto labelled)")
 
     def load_study(self):
         self.i_window = 0
@@ -86,14 +90,15 @@ class MainWindowUI(Ui_MainWindow):
         try:
             sequence_id = self.comboBox_studies.currentText()
             self.numpy_path = self.sequences[sequence_id]['numpy_path']
-            self.report_path = self.sequences[sequence_id]['report_path']
+            self.human_report_path = self.sequences[sequence_id]['human_report_path']
+            self.auto_report_path = self.sequences[sequence_id]['auto_report_path']
 
             for i_seq, seq in enumerate(SEQUENCE_WINDOWS.keys()):
                 self.comboBox_sequences.addItem(f"{i_seq} - {seq} - {self.numpy_path}")
             self.comboBox_sequences.setCurrentIndex(4)  # Select T2w by default
 
-            hui_reported = self.sequences[sequence_id]['reported']=='hui'
-            self.roi_coords = self.load_coords(self.report_path, hui_reported=hui_reported)
+            self.roi_coords = self.load_coords()
+            print(f"self.roi_coords: {self.roi_coords}")
             self.load_sequence()
 
             self.activelabel_name = LABELS[0]
@@ -131,16 +136,15 @@ class MainWindowUI(Ui_MainWindow):
         self.img_array = img_array
         self.draw_image_and_rois()
 
-    def load_coords(self, report_path=None, hui_reported=False):
+    def load_coords(self, report_path=None):
         if report_path is None:
-            report_path = self.report_path
+            if (not os.path.exists(self.human_report_path)) and os.path.exists(self.auto_report_path):
+                report_path = self.auto_report_path  # Only use the auto path if exists and human doesn't
+            else:
+                report_path = self.human_report_path
         if os.path.exists(report_path):
             return load_pickle(report_path)
         else:
-            if hui_reported:
-                hui_report_path = get_hui_report_path(self.numpy_path)
-                if hui_report_path:
-                    return convert_hui_coords_to_peter_coords(load_pickle(hui_report_path))
             return defaultdict(list)
 
     def create_shortcuts(self):
@@ -171,6 +175,10 @@ class MainWindowUI(Ui_MainWindow):
         # x -> change window
         shortcut_changewindow = QShortcut(QKeySequence("X"), self.pushButton_changeWindow)
         shortcut_changewindow.activated.connect(lambda: self.change_window())
+
+        # del -> invalidate
+        shortcut_invalidate = QShortcut(QKeySequence("Del"), self.pushButton_invalidate)
+        shortcut_invalidate.activated.connect(lambda: self.invalidate())
 
     @pyqtSlot()
     def action_changestudy(self, changeby):
@@ -211,6 +219,23 @@ class MainWindowUI(Ui_MainWindow):
         print("changing window")
         self.i_window += 1
         self.load_sequence()
+
+    @pyqtSlot()
+    def invalidate(self):
+        if os.path.exists(self.human_report_path+'.invalid'):
+            print(f"Revalidating old human label")
+            os.rename(self.human_report_path+'.invalid', self.human_report_path)
+        elif os.path.exists(self.auto_report_path+'.invalid'):
+            print(f"Revalidating old auto label")
+            os.rename(self.auto_report_path+'.invalid', self.auto_report_path)
+        else:
+            print(f"Invalidating slice")
+            if os.path.exists(self.human_report_path):
+                os.rename(self.human_report_path, self.human_report_path+'.invalid')
+            elif os.path.exists(self.auto_report_path):
+                os.rename(self.auto_report_path, self.auto_report_path+'.invalid')
+            else:
+                self.save_coords(self.human_report_path+'.invalid')
 
     def draw_buttons(self):
         # Edit button
@@ -288,7 +313,7 @@ class MainWindowUI(Ui_MainWindow):
         out_dict = self.roi_coords
         out_dict['dims'] = self.img_array.shape
         if report_path is None:
-            report_path = self.report_path
+            report_path = self.human_report_path
         print(f"Saving as {report_path}")
         save_pickle(report_path, out_dict)
 

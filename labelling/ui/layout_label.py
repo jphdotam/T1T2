@@ -51,6 +51,8 @@ class Ui_MainWindow(object):
         self.horizontalLayout_Seq.addWidget(self.pushButton_nextseq)
         self.pushButton_changeWindow = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton_changeWindow.setObjectName("pushButton_changeWindow")
+        self.pushButton_invalidate = QtWidgets.QPushButton(self.centralwidget)
+        self.pushButton_invalidate.setObjectName("pushButton_invalidate")
         self.horizontalLayout_Seq.addWidget(self.pushButton_changeWindow)
         self.horizontalLayout_Seq.setStretch(0, 8)
         self.horizontalLayout_Seq.setStretch(1, 1)

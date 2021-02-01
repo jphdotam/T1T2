@@ -625,7 +625,7 @@ def get_hrnet_cfg(cfg):
 
     out['MODEL'] = {}
     out['DATASET'] = {}
-    out['DATASET']['NUM_INPUT_CHANNELS'] = len(cfg['export']['sequences'])
+    out['DATASET']['NUM_INPUT_CHANNELS'] = len(cfg['export']['source_channels'])
     output_classes = cfg['export']['label_classes']
 
     out['DATASET']['NUM_CLASSES'] = len(output_classes)

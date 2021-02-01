@@ -3,7 +3,7 @@ import skimage.graph
 import numpy as np
 
 from skimage.graph import route_through_array
-from skimage.draw import disk
+from skimage.draw import circle as disk
 
 
 def _get_max_of_image_between_two_points(im, x0, y0, x1, y1):
