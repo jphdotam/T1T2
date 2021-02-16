@@ -31,6 +31,9 @@ SRC_FILES = glob(os.path.join(TEST_DICOM_DIR, "**/*.npy"), recursive=True)
 FOV = 256
 WRITE_PNGS = True
 DEVICE = "cuda"
+TTA = True
+
+DATA_TYPE = 'all'  # 'all', 't1' or 't2'
 
 model = get_hrnet_model(get_hrnet_cfg(cfg)).to(DEVICE)
 model = model.eval()
@@ -38,7 +41,7 @@ model.load_state_dict(torch.load(POSE_MODELPATH)['state_dict'])
 
 output_dict = defaultdict(dict)
 
-out_dir = os.path.join("./data", f"predictions_{os.path.basename(os.path.dirname(POSE_MODELPATH))}")
+out_dir = os.path.join("./data", f"predictions_{DATA_TYPE}_{os.path.basename(os.path.dirname(POSE_MODELPATH))}_{'tta' if TTA else ''}")
 if not os.path.exists(out_dir):
     os.makedirs(out_dir)
 
@@ -79,7 +82,15 @@ for i, src in tqdm(enumerate(SRC_FILES), total=len(SRC_FILES)):
     t2w = (t2w*255).astype(np.uint8)
     pd = (pd*255).astype(np.uint8)
 
-    t1_t2 = np.dstack((t1w, t2w, pd, t1_pre, t1_post, t2))
+    if DATA_TYPE == 'all':
+        t1_t2 = np.dstack((t1w, t2w, pd, t1_pre, t1_post, t2))
+    elif DATA_TYPE == 't1':
+        t1_t2 = np.dstack((t1_pre, t1_post))
+    elif DATA_TYPE == 't2':
+        t1_t2 = np.expand_dims(t2, axis=-1)
+    else:
+        raise ValueError()
+
     t1_t2_crop, _top_left = center_crop(pad_if_needed(t1_t2, min_height=FOV, min_width=FOV), crop_height=FOV, crop_width=FOV)
     t1_t2_double = skimage.transform.rescale(t1_t2_crop, 2, order=3, multichannel=True)
 
@@ -90,6 +101,28 @@ for i, src in tqdm(enumerate(SRC_FILES), total=len(SRC_FILES)):
 
     with torch.no_grad():
         pred_batch = model(x).cpu().numpy()
+        ps = [pred_batch,]
+        if TTA:
+            flips = [[-1], [-2], [-2, -1]]
+            for f in flips:
+                xf = torch.flip(x, f)
+                p_b = model(xf)
+                p_b = torch.flip(p_b, f)
+                pred_batch += p_b.cpu().numpy()
+                ps.append(p_b.cpu().numpy())
+
+            pred_batch = pred_batch / len(flips)
+
+    # if i == 1:
+    #     import matplotlib.pyplot as plt
+    #     fig, axes = plt.subplots(len(ps) + 1, 1)
+    #     for p, ax in zip(ps, axes):
+    #         ax.imshow(p[0].max(axis=0))
+    #     axes[-1].imshow(pred_batch[0].max(axis=0))
+    #     plt.show()
+    #
+    #     break
+
 
     # rv masks
     rvi1_xy, rvi2_xy, lv_xy = landmark_points

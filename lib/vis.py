@@ -123,9 +123,19 @@ def vis_pose(dataloader, model, epoch, cfg):
 
 def iou(sectors1, sectors2, group_sectors=True):
     if not group_sectors:
-        raise AttributeError()
+        raise NotImplementedError()
     sectors1 = sectors1.astype(np.bool)
     sectors2 = sectors2.astype(np.bool)
     intersect = sectors1 & sectors2
     union = sectors1 | sectors2
     return intersect.sum() / union.sum()
+
+
+def dice(sectors1, sectors2, group_sectors=True):
+    if not group_sectors:
+        raise NotImplementedError()
+    sectors1 = sectors1.astype(np.bool)
+    sectors2 = sectors2.astype(np.bool)
+    intersect = sectors1 & sectors2
+    d = (intersect * 2) / (np.mean(sectors1) + np.mean(sectors2))
+    return d

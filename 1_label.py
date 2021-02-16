@@ -19,6 +19,7 @@ from lib.windows import SEQUENCE_WINDOWS, window_numpy
 from lib.labeling import get_studies_peter as get_studies
 
 DATADIR_TO_LABEL = "./data/dicoms/test"
+# LABEL_DIR = "./data/labels/test/"
 
 if QtCore.QT_VERSION >= 0x50501:
     def excepthook(type_, value, traceback_):

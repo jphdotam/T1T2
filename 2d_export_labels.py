@@ -8,7 +8,7 @@ from tqdm import tqdm
 from lib.cfg import load_config
 from lib.export import export_label
 
-CONFIG = "./experiments/030.yaml"
+CONFIG = "./experiments/030_t2.yaml"
 EXCLUDED_FILES_PATH = "./data/blacklist.txt"
 
 # Load config
