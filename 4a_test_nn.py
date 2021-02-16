@@ -101,7 +101,6 @@ for i, src in tqdm(enumerate(SRC_FILES), total=len(SRC_FILES)):
 
     with torch.no_grad():
         pred_batch = model(x).cpu().numpy()
-        ps = [pred_batch,]
         if TTA:
             flips = [[-1], [-2], [-2, -1]]
             for f in flips:
@@ -109,7 +108,6 @@ for i, src in tqdm(enumerate(SRC_FILES), total=len(SRC_FILES)):
                 p_b = model(xf)
                 p_b = torch.flip(p_b, f)
                 pred_batch += p_b.cpu().numpy()
-                ps.append(p_b.cpu().numpy())
 
             pred_batch = pred_batch / len(flips)
 
