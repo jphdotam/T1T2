@@ -295,3 +295,10 @@ def perform_cmr_landmark_detection(im, model, fast_mode=0.0, batch_size=8, p_thr
     return pts, probs
 
 
+def extend_landmarks(landmarks, fov):
+    points_ant, points_post, point_mid = landmarks
+    landmarks[0] = points_ant + (points_ant - point_mid)
+    landmarks[1] = points_post + (points_post - point_mid)
+    landmarks = np.clip(landmarks, a_min=0, a_max=fov)  # Prevent going off edges
+    return landmarks
+

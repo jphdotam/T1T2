@@ -8,7 +8,8 @@ from tqdm import tqdm
 from lib.cfg import load_config
 from lib.export import export_label
 
-CONFIG = "./experiments/030_t2.yaml"
+# CONFIG = "./experiments/034_mini.yaml"
+CONFIG = "./experiments/036_mini.yaml"
 EXCLUDED_FILES_PATH = "./data/blacklist.txt"
 
 # Load config
@@ -26,8 +27,15 @@ with open(EXCLUDED_FILES_PATH) as f:
 
 
 def export_label_helper(paths):
-    dicom_path, label_path = paths
-    export_label(dicom_path, label_path, 'npz', sequences, label_classes, output_training_data_dir, gaussian_sigma)
+    dicom_path, label_paths = paths
+    for label_path in label_paths:
+        output_dir = os.path.join(output_training_data_dir,
+                                  os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(label_path)))))
+        os.makedirs(output_dir, exist_ok=True)
+        try:
+            export_label(dicom_path, label_path, 'npz', sequences, label_classes, output_dir, gaussian_sigma)
+        except Exception as e:
+            print(f"Failed {label_path}: {e}")
 
 
 def blacklisted(label_path, excluded_files):
@@ -59,14 +67,14 @@ if __name__ == "__main__":
             seq_id = f"{os.path.basename(os.path.dirname(labelpath))}__{os.path.basename(labelpath).split('.npy')[0]}"
             labels_by_seq[seq_id].append(labelpath)
 
-    labelled_dicoms = {}
+    labelled_dicoms = defaultdict(list)
     for dicom_path in dicompaths:
         seq_id = f"{os.path.basename(os.path.dirname(dicom_path))}__{os.path.basename(dicom_path).split('.npy')[0]}"
         if seq_id in labels_by_seq:
-            label_path = labels_by_seq[seq_id][0]
-            labelled_dicoms[dicom_path] = label_path
+            for label_path in labels_by_seq[seq_id]:
+                labelled_dicoms[dicom_path].append(label_path)
 
-    N_WORKERS = multiprocessing.cpu_count() // 2
+    N_WORKERS = multiprocessing.cpu_count() - 4  #// 2
 
     with multiprocessing.Pool(N_WORKERS) as p:
         for _ in tqdm(p.imap(export_label_helper, labelled_dicoms.items()), total=len(labelled_dicoms)):

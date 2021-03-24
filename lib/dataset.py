@@ -12,6 +12,13 @@ import torch
 from torch.utils.data import Dataset
 
 
+def load_npy_file(npy_path):
+    npy = np.load(npy_path)
+    t1w, t2w, pd, t1, t2 = np.transpose(npy, (2, 0, 1))
+    return t1w, t2w, pd, t1, t2
+
+
+
 class T1T2Dataset(Dataset):
     def __init__(self, cfg, train_or_test, transforms, fold=1):
         self.cfg = cfg
@@ -39,7 +46,7 @@ class T1T2Dataset(Dataset):
                 return 'train'
 
         assert self.train_or_test in ('train', 'test')
-        images = sorted(glob(os.path.join(self.data_dir, f"*__combined.npz")))
+        images = sorted(glob(os.path.join(self.data_dir, f"**/*__combined.npz"), recursive=True))
         dates = list({os.path.basename(i).split('__')[0] for i in images})
         dates = [d for d in dates if get_train_test_for_date(d) == self.train_or_test]
         return dates
@@ -48,7 +55,7 @@ class T1T2Dataset(Dataset):
         """Get a list of tuples of (imgpath, labpath)"""
         sequences = []
         for date in sorted(self.dates):
-            imgpaths = sorted(glob(os.path.join(self.data_dir, f"{date}__*__combined.npz")))  # Get all images
+            imgpaths = sorted(glob(os.path.join(self.data_dir, f"**/{date}__*__combined.npz"), recursive=True))  # Get all images
             sequences.extend(imgpaths)
         print(f"{self.train_or_test.upper():<5} FOLD {self.fold}: Loaded {len(sequences)} over {len(self.dates)} dates")
         return sequences

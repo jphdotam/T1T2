@@ -11,7 +11,7 @@ from tqdm import tqdm
 from lib.cfg import load_config
 from lib.cmaps import default_cmap
 from lib.windows import normalize_data
-from lib.inference import center_crop, pad_if_needed
+from lib.inference import center_crop, pad_if_needed, get_normalized_channel_stack
 
 CONFIG = "experiments/029.yaml"
 cfg, model_dir = load_config(CONFIG)
@@ -45,23 +45,8 @@ for predicted_label_path in tqdm(predicted_labels):
 
     npy = np.load(npy_path)
     t1w, t2w, pd, t1, t2 = np.transpose(npy, (2, 0, 1))
-    t1_pre = normalize_data(t1, window_centre=1300.0, window_width=1300.0)
-    t1_post = normalize_data(t1, window_centre=500.0, window_width=1000.0)
-    t2 = normalize_data(t2, window_centre=60.0, window_width=120.0)
-    t1w = t1w - t1w.min()
-    t1w /= t1w.max()
-    t2w = t2w - t2w.min()
-    t2w /= t2w.max()
-    pd = pd - pd.min()
-    pd /= pd.max()
-    t1_pre = (t1_pre * 255).astype(np.uint8)
-    t1_post = (t1_post * 255).astype(np.uint8)
-    t2 = (t2 * 255).astype(np.uint8)
-    t1w = (t1w * 255).astype(np.uint8)
-    t2w = (t2w * 255).astype(np.uint8)
-    pd = (pd * 255).astype(np.uint8)
 
-    t1_t2 = np.dstack((t1w, t2w, pd, t1_pre, t1_post, t2))
+    t1_pre, t1_post, t2, t1w, t2w, pd, t1_t2 = get_normalized_channel_stack(t1, t2, t1w, t2w, pd, data_stack_format='all')
     t1_t2_crop, _top_left = center_crop(pad_if_needed(t1_t2, min_height=FOV, min_width=FOV), crop_height=FOV,
                                         crop_width=FOV)
 

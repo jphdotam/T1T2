@@ -23,6 +23,8 @@ def get_segmentation_transforms(cfg, normalise=False):
             transforms.append(A.ShiftScaleRotate(p=p))
         if p := trans_cfg.get('elastictransform', False):
             transforms.append(A.ElasticTransform(p=p))
+        if p := trans_cfg.get('griddistortion', False):
+            transforms.append(A.GridDistortion(p=p))
         if p := trans_cfg.get('hflip', False):
             transforms.append(A.HorizontalFlip(p=p))
         if p := trans_cfg.get('vflip', False):
@@ -31,6 +33,8 @@ def get_segmentation_transforms(cfg, normalise=False):
             transforms.append(A.RandomBrightnessContrast(p=p))
         if p := trans_cfg.get('griddropout', False):
             transforms.append(A.GridDropout(fill_value=0, mask_fill_value=0, p=p))
+        if p:= trans_cfg.get('channeldropout', False):
+            transforms.append(A.ChannelDropout(channel_drop_range=(1,1), p=p))
         if p := trans_cfg.get('blur', False):
             transforms.append(A.OneOf([A.MedianBlur(blur_limit=5, p=p),
                                        A.Blur(blur_limit=5, p=p)]))

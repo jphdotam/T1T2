@@ -11,7 +11,7 @@ from lib.vis import vis_pose
 
 import wandb
 
-CONFIG = "experiments/030_t2.yaml"
+CONFIG = "experiments/036_mini.yaml"
 
 if __name__ == "__main__":
 
@@ -56,7 +56,7 @@ if __name__ == "__main__":
         best_loss, last_save_path = save_model(state, save_path, test_loss, best_loss, cfg, last_save_path)
 
         # vis
-        # vis_pose(dl_test, model, epoch, cfg)
+        vis_pose(dl_test, model, epoch, cfg)
 
     save_path = os.path.join(model_dir, f"final_{n_epochs}_{test_loss:.07f}.pt")
     best_loss, last_save_path = save_model(state, save_path, test_loss, best_loss, cfg, last_save_path, final=True)

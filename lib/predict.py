@@ -1,11 +1,12 @@
 import skimage.io
 import numpy as np
 from lib.windows import *
-from lib.inference import center_crop, pad_if_needed
+from lib.inference import center_crop, pad_if_needed, prep_normalized_stack_for_inference
 from lib.landmarks import perform_cmr_landmark_detection
 from lib.tracing import get_epi_end_paths_from_heatmap_and_landmarks as get_paths
 
-def predict_pose(pose_session, t1, t2, t1w, t2w, pd, fov):
+
+def predict_pose(pose_session, t1, t2, t1w, t2w, pd, fov, device="cuda"):
     t1_pre = normalize_data(t1, window_centre=WC_T1_PRE, window_width=WW_T1_PRE)
     t1_post = normalize_data(t1, window_centre=WC_T1_POST, window_width=WW_T1_POST)
     t2 = normalize_data(t2, window_centre=WC_T2, window_width=WW_T2)
@@ -15,24 +16,21 @@ def predict_pose(pose_session, t1, t2, t1w, t2w, pd, fov):
     t2w /= t2w.max()
     pd = pd - pd.min()
     pd /= pd.max()
-    t1_pre = (t1_pre*255).astype(np.uint8)
-    t1_post = (t1_post*255).astype(np.uint8)
-    t2 = (t2*255).astype(np.uint8)
-    t1w = (t1w*255).astype(np.uint8)
-    t2w = (t2w*255).astype(np.uint8)
-    pd = (pd*255).astype(np.uint8)
+    t1_pre = (t1_pre * 255).astype(np.uint8)
+    t1_post = (t1_post * 255).astype(np.uint8)
+    t2 = (t2 * 255).astype(np.uint8)
+    t1w = (t1w * 255).astype(np.uint8)
+    t2w = (t2w * 255).astype(np.uint8)
+    pd = (pd * 255).astype(np.uint8)
 
     t1_t2 = np.dstack((t1w, t2w, pd, t1_pre, t1_post, t2))
-    t1_t2_crop, _top_left = center_crop(pad_if_needed(t1_t2, min_height=fov, min_width=fov), crop_height=fov, crop_width=fov)
-    t1_t2_double = skimage.transform.rescale(t1_t2_crop, 2, order=3, multichannel=True)
 
-    t1_t2_in = t1_t2_double.transpose((2, 0, 1))
-
-    img_batch = np.expand_dims(t1_t2_in, 0).astype(np.float32)
+    img_batch = prep_normalized_stack_for_inference(t1_t2, fov, False)
 
     return pose_session.run([output_name], {input_name: img_batch})[0]  # Returns a list of len 1
 
-def get_points(pose_session, landmark_model, npy, fov):    
+
+def get_points(pose_session, landmark_model, npy, fov):
     """If failure of landmark detection, returns [[], []]"""
     input_name = pose_session.get_inputs()[0].name
     output_name = pose_session.get_outputs()[0].name
@@ -40,15 +38,13 @@ def get_points(pose_session, landmark_model, npy, fov):
     t1w, t2w, pd, t1, t2 = np.transpose(npy, (2, 0, 1))
     t1_raw, t2_raw = t1.copy(), t2.copy()
 
-    t2w_landmark, _top_left_landmark = center_crop(pad_if_needed(t2w, min_height=fov, min_width=fov), crop_height=fov, crop_width=fov)
+    t2w_landmark, _top_left_landmark = center_crop(pad_if_needed(t2w, min_height=fov, min_width=fov), crop_height=fov,
+                                                   crop_width=fov)
     landmark_points, landmark_probs = perform_cmr_landmark_detection(t2w_landmark, model=landmark_model)
 
-    if np.any(landmark_points==-1):
+    if np.any(landmark_points == -1):
         print(f"Skipping - unable to identify all landmarks")
         return [[], []]
-
-    vector_ant = landmark_points[[0,2]]
-    vector_post = landmark_points[[1,2]]
 
     # POSE MODEL
     pred_batch = predict_pose(pose_session, t1, t2, t1w, t2w, pd, fov)
@@ -70,5 +66,3 @@ def get_points(pose_session, landmark_model, npy, fov):
         (xs_epi, ys_epi), (xs_end, ys_end) = get_paths(pred_batch[0], landmark_points)
 
     return (xs_epi, ys_epi), (xs_end, ys_end)
-
-    
